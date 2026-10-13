@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kim Beauty - Đào tạo &amp; Quản lý Spa</title>
+<meta name="description" content="Kim Beauty: đào tạo kỹ năng Spa chuyên nghiệp và phần mềm quản lý, điều hành Spa.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700&family=Bricolage+Grotesque:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#17382B;--green:#1F4D3A;--moss:#708238;--cream:#F7F5F0;--card:#EFECE6;--line:#D5DFD7;--gold:#E9C46A;--gold-d:#8A6A22;--muted:#5E6E66}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:'Be Vietnam Pro',system-ui,sans-serif;background:var(--cream);color:var(--muted);display:flex;flex-direction:column;min-height:100vh}
+.top{text-align:center;padding:44px 20px 8px}
+.logo{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:30px;color:var(--ink)}
+.logo span{color:var(--gold-d)}
+.top p{margin:10px 0 0;font-size:18px}
+main{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:28px;padding:32px 40px 40px;max-width:1280px;width:100%;margin:0 auto}
+.choice{position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-height:420px;padding:48px 44px;border-radius:24px;text-decoration:none;overflow:hidden;transition:transform .2s,box-shadow .2s}
+.choice:hover{transform:translateY(-6px);box-shadow:0 28px 50px -26px rgba(23,56,43,.5)}
+.choice:focus-visible{outline:4px solid var(--gold-d);outline-offset:4px}
+.choice.train{background:var(--moss);color:#fff}
+.choice.manage{background:var(--green);color:#fff}
+.choice::before{content:"";position:absolute;right:-70px;top:-70px;width:260px;height:260px;border-radius:50%;background:rgba(233,196,106,.16)}
+.num{position:absolute;top:36px;left:44px;font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:20px;color:var(--gold)}
+.choice h2{font-family:'Bricolage Grotesque',sans-serif;font-size:46px;line-height:1.1;margin:0;letter-spacing:-.01em;position:relative}
+.choice p{margin:16px 0 28px;font-size:18px;line-height:1.55;max-width:26em;color:rgba(255,255,255,.88);position:relative}
+.go{align-self:flex-start;display:inline-flex;gap:10px;align-items:center;background:var(--gold);color:var(--ink);font-weight:700;font-size:16px;padding:13px 24px;border-radius:12px;position:relative}
+.go i{font-style:normal;transition:transform .2s}
+.choice:hover .go i{transform:translateX(5px)}
+footer{text-align:center;padding:0 20px 28px;font-size:14px}
+@media (max-width:820px){
+ main{grid-template-columns:1fr;padding:24px 18px 32px;gap:18px}
+ .choice{min-height:300px;padding:40px 26px 30px}
+ .num{left:26px;top:26px}
+ .choice h2{font-size:34px}
+ .choice p{font-size:16px}
+}
+@media (prefers-reduced-motion:reduce){.choice,.go i{transition:none}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="logo">Kim Beauty <span>Spa</span></div>
+  <p>Bạn đang tìm gì hôm nay?</p>
+</div>
+
+<main>
+  <!-- ĐỔI LINK Ở ĐÂY: trang Đào tạo kỹ năng Spa -->
+  <a class="choice train" href="LINK_TRANG_DAO_TAO">
+    <span class="num">01</span>
+    <h2>Đào tạo kỹ năng Spa</h2>
+    <p>Các khóa học và chương trình đào tạo Spa chuyên nghiệp dành cho người mới và kỹ thuật viên.</p>
+    <span class="go">Xem khóa đào tạo <i>→</i></span>
+  </a>
+
+  <!-- ĐỔI LINK Ở ĐÂY: trang Quản lý và điều hành Spa -->
+  <a class="choice manage" href="LINK_TRANG_QUAN_LY">
+    <span class="num">02</span>
+    <h2>Quản lý &amp; điều hành Spa</h2>
+    <p>Phần mềm quản lý lịch hẹn, khách hàng, liệu trình, kho, hoa hồng và bảng lương.</p>
+    <span class="go">Xem phần mềm <i>→</i></span>
+  </a>
+</main>
+
+<footer>© Kim Beauty</footer>
+</body>
+</html>
