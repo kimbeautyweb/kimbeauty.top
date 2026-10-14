@@ -2,7 +2,6 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<link rel="icon" type="image/jpeg" href="logo.jpg"><link rel="apple-touch-icon" href="logo.jpg">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kim Beauty POS - Phần mềm quản lý Spa</title>
 <meta name="description" content="Quản lý lịch hẹn, khách hàng, liệu trình, kho, hoa hồng và bảng lương cho Spa. Mỗi cơ sở có tài khoản và dữ liệu riêng.">
@@ -116,13 +115,76 @@ footer.site .wrap{display:flex;justify-content:space-between}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
+
+<link rel="icon" type="image/jpeg" href="logo.jpg"><link rel="apple-touch-icon" href="logo.jpg">
+<meta name="theme-color" content="#1F4D3A">
+<style id="ui-upgrade">
+.btn{transition:background .15s,color .15s,transform .15s,box-shadow .15s}
+.btn.solid{box-shadow:0 12px 26px -14px rgba(23,56,43,.8)}
+.btn:hover{transform:translateY(-2px)}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:var(--ink)}.btn.gold:hover{background:#F1D285}
+button.btn{font-family:inherit;cursor:pointer}
+
+/* menu */
+.menu-btn{display:none;width:44px;height:44px;border:2px solid var(--green);border-radius:10px;background:transparent;color:var(--green);font-size:20px;cursor:pointer}
+nav ul a{position:relative;padding:6px 0}
+nav ul a::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--gold-d);transform:scaleX(0);transform-origin:left;transition:transform .2s}
+nav ul a:hover::after,nav ul a.on::after{transform:scaleX(1)}
+nav ul a.on{color:var(--ink)}
+
+/* hero: sửa hàng điểm nổi bật bị vỡ cột */
+.hero .facts{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+@media (max-width:960px){.hero .facts{grid-template-columns:1fr 1fr}}
+/* hero: cửa sổ minh họa nổi bật hơn */
+.win{box-shadow:0 40px 70px -36px rgba(23,56,43,.55),0 0 0 8px rgba(31,77,58,.05)}
+.win footer em{font-style:normal}
+#rev{font-variant-numeric:tabular-nums}
+.row{transition:background .2s}.row:hover{background:#F7FAF8}
+
+/* bảng phân quyền: cuộn ngang trên máy nhỏ */
+.tbl{overflow-x:auto;margin-top:44px;border:1px solid var(--line);border-radius:14px}
+.tbl table{margin:0;min-width:620px}
+.tbl th:first-child,.tbl td:first-child{position:sticky;left:0;background:#fff}
+tbody tr:hover td{background:#F7FAF8}
+tbody tr:last-child td{border-bottom:0}
+
+/* hỏi đáp */
+details{transition:background .2s;padding:20px 18px;border-radius:12px}
+details[open]{background:var(--mist);border-bottom-color:transparent}
+summary:hover{color:var(--green)}
+
+/* liên hệ + form */
+.leadform{margin-top:6px;padding:22px 24px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(233,196,106,.35)}
+.leadform p{margin:0 0 14px;font-size:16px;color:#fff;font-weight:500}
+.leadform input[type=text],.leadform input[type=tel]{width:100%;padding:13px 16px;margin-bottom:10px;border-radius:10px;border:2px solid transparent;background:#fff;font:inherit;font-size:16px;color:var(--ink)}
+.leadform input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 4px rgba(233,196,106,.3)}
+.leadform .btn{width:100%;font-size:16px}
+
+/* nút gọi nhanh trên điện thoại */
+.quick{display:none}
+@media (max-width:960px){
+ .menu-btn{display:block}
+ nav .wrap{position:relative;gap:10px}
+ nav .btn{display:none}
+ nav ul{position:absolute;left:0;right:0;top:68px;background:var(--paper);border-bottom:1px solid var(--line);padding:8px 22px 18px;flex-direction:column;gap:0}
+ nav.open ul{display:flex}
+ nav ul a{display:block;padding:14px 0;font-size:17px}
+ nav ul a::after{display:none}
+ .quick{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:20;gap:10px;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:rgba(251,250,246,.96);border-top:1px solid var(--line);backdrop-filter:blur(6px)}
+ .quick a{flex:1;text-align:center;padding:13px 8px;border-radius:10px;font-weight:700;text-decoration:none;font-size:16px}
+ .quick .c{background:var(--green);color:#fff}.quick .z{background:#0068FF;color:#fff}
+ body{padding-bottom:70px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
 </head>
 <body>
 
 <nav><div class="wrap">
   <a class="logo" href="#top">Kim Beauty <span>POS</span></a>
-  <ul><li><a href="#tinh-nang">Tính năng</a></li><li><a href="#quy-trinh">Cách bắt đầu</a></li><li><a href="#phan-quyen">Phân quyền</a></li><li><a href="#hoi-dap">Hỏi đáp</a></li></ul>
+  <ul id="navList"><li><a href="#tinh-nang">Tính năng</a></li><li><a href="#quy-trinh">Cách bắt đầu</a></li><li><a href="#phan-quyen">Phân quyền</a></li><li><a href="#hoi-dap">Hỏi đáp</a></li></ul>
   <a class="btn solid" href="#lien-he">Liên hệ dùng thử</a>
+  <button class="menu-btn" id="menuBtn" aria-label="Mở menu" aria-expanded="false" aria-controls="navList">&#9776;</button>
 </div></nav>
 
 <header class="hero" id="top"><div class="wrap">
@@ -141,7 +203,7 @@ footer.site .wrap{display:flex;justify-content:space-between}
         <div class="row"><div>Chị Thu - Serum phục hồi x2<small>Kho tự trừ, còn 6 chai</small></div><em>960.000 đ</em></div>
         <div class="row"><div>Mặt nạ collagen<small>Tồn kho</small></div><span class="tag warn">Sắp hết: 2</span></div>
       </div>
-      <footer><span>Doanh thu hôm nay</span><span>1.410.000 đ</span></footer>
+      <footer><span>Doanh thu hôm nay</span><span id="rev" data-to="1410000">1.410.000 đ</span></footer>
     </div>
     <p class="cap">Giao diện minh họa, số liệu không phải dữ liệu thật.</p>
   </div>
@@ -185,7 +247,7 @@ footer.site .wrap{display:flex;justify-content:space-between}
 
 <section class="roles" id="phan-quyen"><div class="wrap">
   <h2 class="big">Mỗi người chỉ thấy phần việc của mình</h2>
-  <table>
+  <div class="tbl"><table>
     <thead><tr><th></th><th>Super Admin</th><th>Quản lý</th><th>Nhân viên</th></tr></thead>
     <tbody>
       <tr><td>Tạo lượt dịch vụ, lịch hẹn, khách hàng</td><td class="y">Có</td><td class="y">Có</td><td class="y">Theo quyền được cấp</td></tr>
@@ -194,7 +256,7 @@ footer.site .wrap{display:flex;justify-content:space-between}
       <tr><td>Xóa dữ liệu</td><td class="y">Có</td><td class="y">Có</td><td class="n">Không</td></tr>
       <tr><td>Tạo tài khoản, phân quyền</td><td class="y">Có</td><td class="n">Không</td><td class="n">Không</td></tr>
     </tbody>
-  </table>
+  </table></div>
   <p class="note">Chủ Spa quyết định từng nhân viên được mở những mục nào.</p>
 </div></section>
 
@@ -214,9 +276,44 @@ footer.site .wrap{display:flex;justify-content:space-between}
   <div class="call">
     <a href="tel:0978971331">0978 971 331 <small>Gọi hoặc Zalo</small></a>
     <a href="tel:0777701992">0777 701 992 <small>Gọi hoặc Zalo</small></a>
+    <form class="leadform" action="https://formsubmit.co/kimbeauty365@gmail.com" method="POST" onsubmit="document.getElementById('nextUrl').value=location.href">
+      <p>Hoặc để lại số điện thoại, chúng tôi gọi lại tư vấn cho bạn.</p>
+      <input type="hidden" name="_subject" value="[KIM BEAUTY POS] Spa đăng ký dùng thử mới!">
+      <input type="hidden" name="_template" value="table">
+      <input type="hidden" name="_captcha" value="false">
+      <input type="hidden" id="nextUrl" name="_next" value="">
+      <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off">
+      <input type="text" name="Tên_Spa" placeholder="Tên Spa của bạn" required autocomplete="organization">
+      <input type="tel" name="Số_điện_thoại" placeholder="Số điện thoại" required inputmode="tel" autocomplete="tel" pattern="[0-9 .+]{9,15}" title="Nhập số điện thoại, ví dụ 0978 971 331">
+      <button class="btn gold" type="submit">Gửi thông tin</button>
+    </form>
   </div>
 </div></section>
 
 <footer class="site"><div class="wrap"><span>Kim Beauty POS</span><span>Phần mềm quản lý Spa</span></div></footer>
+
+<div class="quick"><a class="c" href="tel:0978971331">Gọi ngay</a><a class="z" href="https://zalo.me/0978971331" target="_blank" rel="noopener">Nhắn Zalo</a></div>
+<script>
+(function(){
+  var nav=document.querySelector('nav'),btn=document.getElementById('menuBtn');
+  function setMenu(o){nav.classList.toggle('open',o);btn.setAttribute('aria-expanded',o);btn.innerHTML=o?'&#10005;':'&#9776;'}
+  btn.addEventListener('click',function(){setMenu(!nav.classList.contains('open'))});
+  document.querySelectorAll('#navList a').forEach(function(a){a.addEventListener('click',function(){setMenu(false)})});
+  // làm nổi mục đang xem
+  var links=[].slice.call(document.querySelectorAll('#navList a'));
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){links.forEach(function(l){l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id)})}})},{rootMargin:'-45% 0px -50% 0px'});
+    links.forEach(function(l){var t=document.querySelector(l.getAttribute('href'));if(t)io.observe(t)});
+  }
+  // đếm số doanh thu minh họa, chạy một lần khi hiện ra
+  var el=document.getElementById('rev');
+  if(el&&!matchMedia('(prefers-reduced-motion:reduce)').matches&&'IntersectionObserver' in window){
+    var to=+el.dataset.to,done=false;
+    new IntersectionObserver(function(es,ob){if(es[0].isIntersecting&&!done){done=true;ob.disconnect();var t0=performance.now();
+      (function f(t){var p=Math.min(1,(t-t0)/1400),v=Math.round(to*(1-Math.pow(1-p,3)));el.textContent=v.toLocaleString('vi-VN')+' đ';if(p<1)requestAnimationFrame(f)})(t0)}}).observe(el);
+    el.textContent='0 đ';
+  }
+})();
+</script>
 </body>
 </html>
