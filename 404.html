@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Kim Beauty</title>
+<link rel="icon" type="image/jpeg" href="/logo.jpg">
+<style>
+:root{--ink:#17382B;--green:#1F4D3A;--gold:#E9C46A;--paper:#FBFAF6;--text:#33423B}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui,'Be Vietnam Pro',sans-serif;background:var(--paper);color:var(--text);line-height:1.6;text-align:center}
+.card{max-width:460px;width:100%}
+h1{margin:0 0 10px;font-size:26px;color:var(--ink);line-height:1.2}
+p{margin:0 0 22px}
+.spin{width:38px;height:38px;border:4px solid #D5DFD7;border-top-color:var(--green);border-radius:50%;margin:0 auto 20px;animation:r .8s linear infinite}
+@keyframes r{to{transform:rotate(360deg)}}
+.btn{display:inline-block;margin:4px;padding:13px 24px;border-radius:10px;font-weight:700;text-decoration:none;border:2px solid var(--green);color:var(--green)}
+.btn.s{background:var(--green);color:#fff}
+.hide{display:none}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="loading"><div class="spin" aria-hidden="true"></div><h1>Đang mở phần mềm Spa...</h1><p>Vui lòng chờ trong giây lát.</p></div>
+  <div id="missing" class="hide">
+    <h1 id="mTitle">Không tìm thấy trang này</h1>
+    <p id="mText">Đường dẫn có thể đã gõ sai. Bạn hãy kiểm tra lại link hoặc quay về trang chính.</p>
+    <a class="btn s" href="/">Về trang chủ</a><a class="btn" href="tel:0978971331">Gọi 0978 971 331</a>
+  </div>
+</div>
+<script>
+// Trang phần mềm POS (cùng tên miền)
+var POS = "/kimbeauty_pos.html";
+
+// Tên ngắn cho từng Spa -> mã cơ sở. Spa mới: thêm một dòng, nhớ có dấu phẩy ở cuối dòng trước.
+// Viết thường, không dấu, nối bằng dấu gạch ngang.
+var SPAS = {
+  // "linh-an": "spa_275b5c9ff9"
+};
+
+(function () {
+  var m = location.pathname.match(/^\/quanly\/([^\/]+)\/?$/i);
+  if (m) {
+    var slug = decodeURIComponent(m[1]).toLowerCase();
+    var id = SPAS[slug] || (/^spa_[a-z0-9]{6,30}$/.test(slug) ? slug : "");
+    if (id) { location.replace(POS + "?spaId=" + encodeURIComponent(id) + "&s=" + encodeURIComponent(slug)); return; }
+    document.getElementById("mTitle").textContent = "Không tìm thấy cơ sở này";
+    document.getElementById("mText").textContent = "Link của Spa có thể đã gõ sai hoặc cơ sở đã bị xóa. Vui lòng liên hệ để được gửi lại link đúng.";
+  }
+  document.getElementById("loading").classList.add("hide");
+  document.getElementById("missing").classList.remove("hide");
+})();
+</script>
+<noscript><p>Trình duyệt đang tắt JavaScript nên không mở được liên kết này. Vui lòng bật JavaScript và thử lại.</p></noscript>
+</body>
+</html>
