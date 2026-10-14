@@ -5,7 +5,6 @@
 <head>
 
     <meta charset="UTF-8">
-<link rel="icon" type="image/jpeg" href="logo.jpg"><link rel="apple-touch-icon" href="logo.jpg">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -71,6 +70,74 @@
 
     </style>
 
+    <link rel="icon" type="image/jpeg" href="logo.jpg"><link rel="apple-touch-icon" href="logo.jpg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+
+    <style id="ui-upgrade">
+    :root{--ink:#3B4519;--moss:#708238;--gold:#B8923A;--cream:#F7F5F0;--sand:#EFECE6}
+    body{font-family:'Be Vietnam Pro',system-ui,sans-serif;line-height:1.65}
+    h1,h2,h3.serif,#tai-sao h3,#gia-tri h3,#khoa-hoc h3,#lien-he h3{font-family:'Playfair Display','Be Vietnam Pro',serif;letter-spacing:-.005em}
+    section h2{text-transform:none!important;letter-spacing:-.01em!important;font-family:'Playfair Display',serif;font-size:clamp(30px,4.2vw,46px)!important;line-height:1.15;font-weight:700!important}
+    :focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+
+    /* Header: logo chữ serif, nút CTA nổi bật */
+    header .text-2xl{font-family:'Playfair Display',serif;font-weight:800;letter-spacing:.01em}
+    header nav a{position:relative;font-size:15px}
+    header nav a::after{content:"";position:absolute;left:0;right:0;bottom:-6px;height:2px;background:var(--gold);transform:scaleX(0);transform-origin:left;transition:transform .2s}
+    header nav a:hover::after{transform:scaleX(1)}
+
+    /* Hero: banner có nền hào quang nhẹ + hàng nút hành động */
+    #trang-chu{padding-top:28px;position:relative}
+    #trang-chu>div{border:0!important;border-radius:28px!important;box-shadow:0 30px 60px -30px rgba(61,69,25,.55)!important}
+    .hero-cta{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:28px}
+    .hero-cta a{padding:14px 28px;border-radius:999px;font-weight:600;text-decoration:none;transition:transform .15s,background .15s}
+    .hero-cta .p{background:var(--moss);color:#fff;box-shadow:0 10px 24px -12px rgba(61,69,25,.7)}
+    .hero-cta .p:hover{background:var(--ink);transform:translateY(-2px)}
+    .hero-cta .g{border:2px solid var(--moss);color:var(--ink)}
+    .hero-cta .g:hover{background:var(--sand)}
+
+    /* Tại sao chọn: bỏ thẻ giống hệt nhau, đổi sang danh sách thoáng có đường kẻ */
+    #tai-sao{background:#fff!important;padding:96px 0!important}
+    #tai-sao .grid{gap:0 56px!important}
+    #tai-sao .grid>div{background:transparent!important;border:0!important;border-top:1px solid #D9DCC8!important;border-radius:0!important;box-shadow:none!important;padding:34px 4px 38px!important;display:grid!important;grid-template-columns:56px 1fr;column-gap:20px;align-items:start}
+    #tai-sao .grid>div:hover{box-shadow:none!important}
+    #tai-sao .grid>div>div:first-child{grid-row:1/3;width:52px!important;height:52px!important;margin:0!important;border-radius:50%!important;background:var(--sand)!important;color:var(--moss)!important;font-size:20px!important;box-shadow:none!important;transition:background .2s,color .2s}
+    #tai-sao .grid>div:hover>div:first-child{background:var(--moss)!important;color:#fff!important}
+    #tai-sao .grid>div h3{font-size:22px!important;margin:0 0 8px!important}
+    #tai-sao .grid>div p{margin:0;color:#59614A}
+
+    /* Khóa học: thẻ ảnh lớn, nhãn nổi trên ảnh */
+    #khoa-hoc{padding-top:96px!important;padding-bottom:96px!important}
+    #course-carousel>div{border-radius:22px!important;border:0!important;box-shadow:0 18px 40px -26px rgba(61,69,25,.55)!important;transition:transform .25s,box-shadow .25s;position:relative}
+    #course-carousel>div:hover{transform:translateY(-6px);box-shadow:0 30px 50px -26px rgba(61,69,25,.6)!important}
+    #course-carousel>div>div:first-child{height:220px!important}
+    #course-carousel>div .p-6 span.rounded-full{background:var(--ink)!important;color:#F4E6B8!important;padding:5px 12px!important;position:absolute;top:16px;left:16px;font-size:12px!important}
+    #course-carousel>div h3{margin-top:0!important;font-size:21px!important;line-height:1.3}
+    #course-carousel>div button{border-radius:999px!important}
+
+    /* Giá trị nhận được: nền xanh có chiều sâu, thẻ trong suốt gọn hơn */
+    #gia-tri{background:radial-gradient(1200px 500px at 85% -10%,#8A9C4A 0%,transparent 60%),#5E6E2D!important;padding:96px 0!important}
+    #gia-tri .grid>div{background:rgba(255,255,255,.08)!important;border:1px solid rgba(255,255,255,.22)!important;border-radius:20px!important;padding:32px 24px!important;transition:background .2s}
+    #gia-tri .grid>div:hover{background:rgba(255,255,255,.15)!important}
+    #gia-tri .grid>div>div:first-child{background:#F4E6B8!important;color:var(--ink)!important}
+
+    /* Liên hệ + form */
+    #lien-he{padding-top:96px!important;padding-bottom:96px!important}
+    #registrationForm input,#registrationForm select,#registrationForm textarea{border-radius:14px!important;transition:border-color .15s,box-shadow .15s}
+    #registrationForm input:focus,#registrationForm select:focus,#registrationForm textarea:focus{outline:none;border-color:var(--moss)!important;box-shadow:0 0 0 4px rgba(112,130,56,.18)}
+    #registrationForm button[type=submit]{border-radius:999px!important;font-size:17px;padding-top:15px!important;padding-bottom:15px!important}
+
+    /* Nút gọi nhanh (UX điện thoại) */
+    .quick-call{position:fixed;right:16px;bottom:16px;z-index:60;display:flex;flex-direction:column;gap:10px}
+    .quick-call a{display:flex;align-items:center;gap:10px;padding:13px 18px;border-radius:999px;text-decoration:none;font-weight:600;font-size:15px;color:#fff;box-shadow:0 14px 28px -12px rgba(0,0,0,.45);transition:transform .15s}
+    .quick-call a:hover{transform:translateY(-2px)}
+    .quick-call .call{background:var(--moss)}
+    .quick-call .zalo{background:#0068FF}
+    @media (min-width:768px){.quick-call .t{display:inline}}
+    @media (max-width:640px){.quick-call a{padding:13px 16px}.quick-call .t{display:none}.quick-call .call .t{display:inline}#tai-sao .grid>div{grid-template-columns:48px 1fr}}
+    @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+    </style>
 </head>
 
 <body class="bg-brand-cream text-brand-text font-sans antialiased selection:bg-brand-green selection:text-white">
@@ -137,7 +204,12 @@
 
         </div>
 
-    </section>
+    
+        <div class="hero-cta">
+            <a class="p" href="#khoa-hoc">Xem các khóa học</a>
+            <a class="g" href="#lien-he">Đăng ký tư vấn miễn phí</a>
+        </div>
+</section>
 
 
 
@@ -1047,6 +1119,11 @@
 
     </script>
 
+
+    <div class="quick-call">
+        <a class="zalo" href="https://zalo.me/0978971331" target="_blank" rel="noopener"><i class="fa-solid fa-comment-dots"></i><span class="t">Nhắn Zalo</span></a>
+        <a class="call" href="tel:0978971331"><i class="fa-solid fa-phone"></i><span class="t">Gọi tư vấn</span></a>
+    </div>
 </body>
 
 </html>
