@@ -25,6 +25,7 @@
     <!-- FontAwesome & SheetJS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
@@ -120,6 +121,9 @@
                             </button>
                             <button onclick="openChangePasswordModal()" class="w-full text-left px-4 py-2 text-xs hover:bg-brand-cream flex items-center gap-2 text-gray-700 font-medium">
                                 🔑 Đổi mật khẩu
+                            </button>
+                            <button onclick="openBankModal()" class="superadmin-only hidden w-full text-left px-4 py-2 text-xs hover:bg-brand-cream flex items-center gap-2 text-gray-700 font-medium">
+                                🏦 Tài khoản nhận tiền (STK)
                             </button>
                             <button onclick="handleLogout()" class="w-full text-left px-4 py-2 text-xs hover:bg-red-50 text-red-600 font-bold flex items-center gap-2 border-t border-gray-100">
                                 🚪 Đăng xuất
@@ -251,6 +255,7 @@
                             </div>
                         </div>
 
+                        <button type="button" onclick="showPaymentQR()" class="w-full py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300 font-bold rounded-xl text-xs">📱 Hiện QR thanh toán chuyển khoản</button>
                         <div class="flex gap-2 pt-1">
                             <button type="button" onclick="toggleAddLogForm()" class="w-1/3 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs">Hủy</button>
                             <button type="submit" class="w-2/3 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs shadow">XÁC NHẬN THANH TOÁN</button>
@@ -404,6 +409,18 @@
                             <div id="commissionRatesInputsContainer" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
                         </div>
 
+                        <!-- HOA HỒNG RIÊNG CHO MỖI BUỔI LẺ CỦA COMBO -->
+                        <div id="comboSessionCommBox" class="hidden space-y-2 border-t pt-2">
+                            <div class="flex flex-wrap justify-between items-center gap-2">
+                                <label class="block text-xs font-bold text-amber-900">Hoa hồng riêng cho mỗi buổi lẻ (khi khách dùng combo):</label>
+                                <div class="flex gap-3 text-xs font-bold">
+                                    <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="sessCommType" value="FIXED" checked onchange="renderSessionCommInputs()" class="w-3.5 h-3.5"><span>Số tiền cố định (VNĐ)</span></label>
+                                    <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="sessCommType" value="PERCENT" onchange="renderSessionCommInputs()" class="w-3.5 h-3.5"><span>Theo Phần trăm (%)</span></label>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-gray-500">Giá mỗi buổi = Tổng giá combo ÷ số buổi. Hoa hồng % tính trên giá mỗi buổi đó. Để trống tất cả = dùng hoa hồng chung của combo như trước.</p>
+                            <div id="sessionCommInputsContainer" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
+                        </div>
                         <button type="submit" class="w-full py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs shadow">LƯU CẤU HÌNH DỊCH VỤ</button>
                     </form>
 
@@ -907,6 +924,53 @@
             </div>
         </div>
 
+        <!-- MODAL TÀI KHOẢN NHẬN TIỀN (STK) -->
+        <div id="bankModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
+                <h3 class="font-bold text-base text-brand-darkgreen border-b pb-2">🏦 Tài khoản nhận tiền của Spa</h3>
+                <p class="text-[11px] text-gray-500">Thông tin này dùng để tạo mã QR thanh toán (VietQR) kèm số tiền khi thu ngân.</p>
+                <form onsubmit="saveBank(event)" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Ngân hàng *</label>
+                        <select id="bankSelect" onchange="toggleBankOther()" class="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold"></select>
+                    </div>
+                    <div id="bankOtherBox" class="hidden">
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Mã BIN ngân hàng (6 số) *</label>
+                        <input type="text" id="bankBinOther" inputmode="numeric" maxlength="6" placeholder="970407" class="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Số tài khoản *</label>
+                        <input type="text" id="bankAccNo" inputmode="numeric" required placeholder="881315555555" class="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">Tên chủ tài khoản *</label>
+                        <input type="text" id="bankAccName" required placeholder="NGUYEN THI MY HANH" class="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold uppercase">
+                        <p class="text-[10px] text-gray-400 mt-1">Tự chuyển thành chữ HOA không dấu.</p>
+                    </div>
+                    <div class="flex gap-2 pt-1">
+                        <button type="button" onclick="closeBankModal()" class="w-1/2 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs">Hủy</button>
+                        <button type="submit" class="w-1/2 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs">Lưu</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- MODAL HIỆN QR THANH TOÁN -->
+        <div id="payQrModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl space-y-3 text-center max-h-[95vh] overflow-y-auto">
+                <h3 id="payQrSpa" class="font-bold text-base text-brand-darkgreen">Thanh toán</h3>
+                <p class="text-xs text-gray-500">Quét mã bằng ứng dụng ngân hàng, số tiền đã được điền sẵn</p>
+                <div id="payQrBox" class="mx-auto flex items-center justify-center" style="width:260px;min-height:260px"></div>
+                <div id="payQrAmount" class="text-2xl font-black text-emerald-700"></div>
+                <div class="bg-brand-cream/60 rounded-2xl p-3 text-xs text-left space-y-1">
+                    <div>Ngân hàng: <b id="payQrBank"></b></div>
+                    <div>Số tài khoản: <b id="payQrAcc"></b></div>
+                    <div>Chủ tài khoản: <b id="payQrName"></b></div>
+                    <div>Nội dung: <b id="payQrNote"></b></div>
+                </div>
+                <button type="button" onclick="closePayQr()" class="w-full py-2.5 bg-brand-green text-white font-bold rounded-xl text-sm">Đóng</button>
+            </div>
+        </div>
         <!-- MODAL ĐỔI MẬT KHẨU -->
         <div id="changePassModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
@@ -992,6 +1056,7 @@
         let globalServiceLogs = {};
         let globalBookings = {};
         let globalDynamicModules = {};
+        let globalBank = {}; // tài khoản nhận tiền của Spa (QR thanh toán)
         let isFirstBookingLoad = true;
 
         // Bảng màu phân biệt cho từng trường dữ liệu động
@@ -1345,6 +1410,94 @@
             }
         }
 
+        // ===================== QR THANH TOÁN VIETQR =====================
+        const VN_BANKS = [['Techcombank','970407'],['Vietcombank','970436'],['VietinBank','970415'],['BIDV','970418'],['Agribank','970405'],['MB Bank','970422'],['ACB','970416'],['VPBank','970432'],['TPBank','970423'],['Sacombank','970403'],['HDBank','970437'],['VIB','970441'],['SHB','970443'],['OCB','970448'],['MSB','970426'],['SeABank','970440'],['Eximbank','970431'],['LPBank','970449'],['Nam A Bank','970428'],['Bac A Bank','970409'],['ABBANK','970425'],['PVcomBank','970412'],['SCB','970429'],['NCB','970419'],['VietBank','970433'],['BaoViet Bank','970438'],['Kienlongbank','970452'],['BVBank','970454']];
+
+        function toAscii(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D'); }
+        function vqCrc16(str) {
+            let crc = 0xFFFF;
+            for (let i = 0; i < str.length; i++) {
+                crc ^= str.charCodeAt(i) << 8;
+                for (let j = 0; j < 8; j++) crc = (crc & 0x8000) ? (((crc << 1) ^ 0x1021) & 0xFFFF) : ((crc << 1) & 0xFFFF);
+            }
+            return crc.toString(16).toUpperCase().padStart(4, '0');
+        }
+        function vqTlv(id, val) { return id + String(val.length).padStart(2, '0') + val; }
+        function buildVietQR(bin, account, amount, note) {
+            const mai = vqTlv('00', 'A000000727') + vqTlv('01', vqTlv('00', bin) + vqTlv('01', account)) + vqTlv('02', 'QRIBFTTA');
+            let p = vqTlv('00', '01') + vqTlv('01', amount > 0 ? '12' : '11') + vqTlv('38', mai) + vqTlv('53', '704');
+            if (amount > 0) p += vqTlv('54', String(Math.round(amount)));
+            p += vqTlv('58', 'VN');
+            if (note) p += vqTlv('62', vqTlv('08', note));
+            p += '6304';
+            return p + vqCrc16(p);
+        }
+
+        function toggleBankOther() { document.getElementById('bankOtherBox').classList.toggle('hidden', document.getElementById('bankSelect').value !== 'OTHER'); }
+        function closeBankModal() { document.getElementById('bankModal').classList.add('hidden'); }
+        function openBankModal() {
+            if (!currentUser || currentUser.role !== 'SUPER_ADMIN') return;
+            document.getElementById('userMenuDropdown').classList.add('hidden');
+            const sel = document.getElementById('bankSelect');
+            sel.innerHTML = '<option value="">-- Chọn ngân hàng --</option>' + VN_BANKS.map(b => `<option value="${b[1]}">${b[0]}</option>`).join('') + '<option value="OTHER">Ngân hàng khác (nhập mã BIN)</option>';
+            const b = globalBank || {};
+            const known = VN_BANKS.some(x => x[1] === b.bankBin);
+            sel.value = b.bankBin ? (known ? b.bankBin : 'OTHER') : '';
+            document.getElementById('bankBinOther').value = (b.bankBin && !known) ? b.bankBin : '';
+            document.getElementById('bankAccNo').value = b.accountNo || '';
+            document.getElementById('bankAccName').value = b.accountName || '';
+            toggleBankOther();
+            document.getElementById('bankModal').classList.remove('hidden');
+        }
+        function saveBank(e) {
+            e.preventDefault();
+            if (!currentUser || currentUser.role !== 'SUPER_ADMIN') { alert('Chỉ Super Admin được cập nhật tài khoản nhận tiền.'); return; }
+            const sel = document.getElementById('bankSelect');
+            const other = sel.value === 'OTHER';
+            const bin = other ? document.getElementById('bankBinOther').value.trim() : sel.value;
+            const bankName = other ? ('Ngân hàng (BIN ' + bin + ')') : (sel.selectedIndex > 0 ? sel.options[sel.selectedIndex].text : '');
+            const acc = document.getElementById('bankAccNo').value.replace(/\s+/g, '');
+            const name = toAscii(document.getElementById('bankAccName').value.trim()).toUpperCase();
+            if (!/^\d{6}$/.test(bin)) { alert('Vui lòng chọn ngân hàng (mã BIN gồm 6 chữ số).'); return; }
+            if (!/^[0-9A-Za-z]{4,25}$/.test(acc)) { alert('Số tài khoản không hợp lệ.'); return; }
+            if (!name) { alert('Vui lòng nhập tên chủ tài khoản.'); return; }
+            db.ref(SPA_PATH + '/settings/bank').set({ bankBin: bin, bankName, accountNo: acc, accountName: name }, (err) => {
+                if (!err) { alert('Đã lưu tài khoản nhận tiền!'); closeBankModal(); }
+            });
+        }
+
+        function getLogPayableAmount() {
+            const transfer = parseFloat(document.getElementById('logTransferAmount').value) || 0;
+            if (transfer > 0) return transfer;
+            let total = 0;
+            document.querySelectorAll('.service-row').forEach(r => { total += parseFloat(r.querySelector('.serv-price').value) || 0; });
+            return total;
+        }
+        function closePayQr() { document.getElementById('payQrModal').classList.add('hidden'); }
+        function showPaymentQR(amount, note) {
+            const b = globalBank || {};
+            if (!b.bankBin || !b.accountNo) {
+                if (currentUser && currentUser.role === 'SUPER_ADMIN') { if (confirm('Chưa cài tài khoản nhận tiền. Cài đặt ngay?')) openBankModal(); }
+                else alert('Chủ Spa chưa cài tài khoản nhận tiền (STK). Vui lòng báo chủ Spa cập nhật trong menu tên ➜ Tài khoản nhận tiền.');
+                return;
+            }
+            const amt = Math.round(typeof amount === 'number' ? amount : getLogPayableAmount());
+            if (!(amt > 0)) { alert('Chưa có số tiền cần thanh toán. Hãy chọn dịch vụ hoặc sản phẩm trước.'); return; }
+            const spaName = (spaMeta && spaMeta.name) || '';
+            const content = (note || ('TT ' + toAscii(spaName))).replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, 25);
+            const box = document.getElementById('payQrBox');
+            box.innerHTML = '';
+            if (typeof QRCode !== 'undefined') new QRCode(box, { text: buildVietQR(b.bankBin, b.accountNo, amt, content), width: 260, height: 260, correctLevel: QRCode.CorrectLevel.M });
+            else box.innerHTML = '<p class="text-xs text-red-600">Không tải được thư viện tạo mã QR. Hãy kiểm tra mạng hoặc chuyển khoản theo thông tin bên dưới.</p>';
+            document.getElementById('payQrSpa').innerText = spaName || 'Thanh toán';
+            document.getElementById('payQrAmount').innerText = formatVND(amt);
+            document.getElementById('payQrBank').innerText = b.bankName || '';
+            document.getElementById('payQrAcc').innerText = b.accountNo;
+            document.getElementById('payQrName').innerText = b.accountName || '';
+            document.getElementById('payQrNote').innerText = content;
+            document.getElementById('payQrModal').classList.remove('hidden');
+        }
+
         function toggleUserMenu() { document.getElementById('userMenuDropdown').classList.toggle('hidden'); }
         function openChangePasswordModal() {
             document.getElementById('userMenuDropdown').classList.add('hidden');
@@ -1472,6 +1625,7 @@
                 renderPendingBookingsInLogUI();
             });
 
+            db.ref(SPA_PATH + '/settings/bank').on('value', (snap) => { globalBank = snap.val() || {}; });
             db.ref(SPA_PATH + '/system_modules').on('value', (snap) => {
                 globalDynamicModules = snap.val() || {};
                 renderDynamicModulesUI();
@@ -2312,6 +2466,7 @@
         function closeSalaryDetailModal() { document.getElementById('salaryDetailModal').classList.add('hidden'); }
 
         function renderCommissionInputsInServiceUI() {
+            renderSessionCommInputs();
             const container = document.getElementById('commissionRatesInputsContainer');
             const commType = document.querySelector('input[name="commType"]:checked').value;
             const unitText = (commType === 'PERCENT') ? '%' : 'VNĐ';
@@ -2325,6 +2480,21 @@
             `).join('');
         }
 
+        function renderSessionCommInputs() {
+            const box = document.getElementById('sessionCommInputsContainer');
+            if (!box) return;
+            const checked = document.querySelector('input[name="sessCommType"]:checked');
+            const t = checked ? checked.value : 'FIXED';
+            const unit = (t === 'PERCENT') ? '%' : 'VNĐ';
+            const old = {};
+            box.querySelectorAll('.sess-comm-input-field').forEach(i => { old[i.getAttribute('data-level')] = i.value; });
+            box.innerHTML = globalLevels.map(lvl => `
+                <div>
+                    <label class="block text-[10px] font-bold text-gray-600">Cấp "${lvl}" (${unit})</label>
+                    <input type="number" min="0" step="${t === 'PERCENT' ? '0.5' : '1000'}" data-level="${lvl}" value="${old[lvl] !== undefined ? old[lvl] : ''}" placeholder="${t === 'PERCENT' ? '10' : '20000'}" class="sess-comm-input-field w-full px-2 py-1.5 bg-white rounded-lg border border-amber-300 text-xs font-bold text-amber-900">
+                </div>
+            `).join('');
+        }
         function addNewService(e) {
             e.preventDefault();
             const name = document.getElementById('servName').value.trim();
@@ -2339,6 +2509,16 @@
             });
 
             const newServ = { name, price, type, sessions, commType, commissions: comms };
+            if (type === 'COMBO') {
+                // Hoa hồng riêng cho từng buổi lẻ (chỉ lưu nếu có nhập ít nhất một ô)
+                const sessInputs = Array.from(document.querySelectorAll('.sess-comm-input-field'));
+                if (sessInputs.some(inp => inp.value !== '')) {
+                    const sc = {};
+                    sessInputs.forEach(inp => { sc[inp.getAttribute('data-level')] = parseFloat(inp.value) || 0; });
+                    newServ.sessionCommType = document.querySelector('input[name="sessCommType"]:checked').value;
+                    newServ.sessionCommissions = sc;
+                }
+            }
             if (type === 'PRODUCT') newServ.stock = Math.max(0, parseInt(document.getElementById('servStock').value) || 0);
 
             db.ref(SPA_PATH + '/services').push(newServ, (err) => {
@@ -2404,6 +2584,7 @@
                             ${deleteBtn}
                         </div>
                         ${s.type === 'COMBO' ? `<div class="text-[10px] text-amber-800 font-bold">Số buổi: ${s.sessions} buổi</div>` : ''}
+${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex flex-wrap gap-1 items-center"><span class="text-[10px] font-bold text-amber-900">Hoa hồng mỗi buổi:</span>${globalLevels.map(lvl => { const r = s.sessionCommissions[lvl] || 0; return `<span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded text-[10px] font-semibold">${lvl}: ${s.sessionCommType === 'PERCENT' ? r + '%' : formatVND(r)}</span>`; }).join(' ')}</div>` : ''}
                         ${s.type === 'PRODUCT' ? stockInfoHTML(key, s, isAdmin) : ''}
                         <div class="flex flex-wrap gap-1">${commBadges}</div>
                     </div>
@@ -2535,7 +2716,14 @@
                 const servObj = servKey ? globalServices[servKey] : null;
 
                 let commVal = (staffObj && servObj && servObj.commissions) ? (servObj.commissions[staffObj.level] || 0) : 0;
-                let sessionCommAmount = (servObj && servObj.commType === 'FIXED') ? (commVal * usedSessions) : ((perSessionPrice * commVal) / 100 * usedSessions);
+                // Hoa hồng riêng cho buổi lẻ (nếu combo có cấu hình); combo chưa cấu hình thì dùng hoa hồng chung như trước
+                let sessionCommAmount;
+                if (servObj && servObj.sessionCommissions && staffObj) {
+                    const sv = Number(servObj.sessionCommissions[staffObj.level]) || 0;
+                    sessionCommAmount = (servObj.sessionCommType === 'PERCENT') ? ((perSessionPrice * sv) / 100 * usedSessions) : (sv * usedSessions);
+                } else {
+                    sessionCommAmount = (servObj && servObj.commType === 'FIXED') ? (commVal * usedSessions) : ((perSessionPrice * commVal) / 100 * usedSessions);
+                }
 
                 items.push({ service: `${servName} (Liệu trình ${usedSessions} buổi)`, price: 0, staff: staffName, commissionAmount: sessionCommAmount });
 
@@ -2609,6 +2797,8 @@
             const selectedType = document.querySelector('input[name="servType"]:checked').value;
             document.getElementById('comboSessionsBox').classList.toggle('hidden', selectedType !== 'COMBO');
             document.getElementById('productStockBox').classList.toggle('hidden', selectedType !== 'PRODUCT');
+            const sessBox = document.getElementById('comboSessionCommBox');
+            if (sessBox) sessBox.classList.toggle('hidden', selectedType !== 'COMBO');
         }
 
         function renderCustomerSelectInLogUI() {
