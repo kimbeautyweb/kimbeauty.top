@@ -270,10 +270,11 @@
                             </div>
                         </div>
 
+                        <div id="logFormError" class="hidden bg-red-50 border border-red-300 text-red-700 text-xs font-bold rounded-xl px-3 py-2"></div>
                         <button type="button" onclick="showPaymentQR()" class="w-full py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300 font-bold rounded-xl text-xs">📱 Hiện QR thanh toán chuyển khoản</button>
                         <div class="flex gap-2 pt-1">
                             <button type="button" onclick="toggleAddLogForm()" class="w-1/3 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs">Hủy</button>
-                            <button type="submit" class="w-2/3 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs shadow">XÁC NHẬN THANH TOÁN</button>
+                            <button type="submit" id="logSubmitBtn" class="w-2/3 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs shadow disabled:opacity-60">XÁC NHẬN THANH TOÁN</button>
                         </div>
                     </form>
 
@@ -967,6 +968,19 @@
                         <button type="submit" class="w-1/2 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs">Lưu</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- THÔNG BÁO LƯU THÀNH CÔNG + IN BILL -->
+        <div id="saveDoneModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-xs rounded-3xl p-5 shadow-2xl text-center space-y-3">
+                <div class="text-4xl">✅</div>
+                <h3 class="font-bold text-base text-brand-darkgreen">HOÀN THÀNH!</h3>
+                <p id="saveDoneInfo" class="text-xs text-gray-700 leading-relaxed"></p>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closeSaveDone()" class="w-1/2 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs">Đóng</button>
+                    <button type="button" onclick="printSavedLog()" class="w-1/2 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs">🖨 In hóa đơn</button>
+                </div>
             </div>
         </div>
 
@@ -2856,8 +2870,29 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
             XLSX.writeFile(workbook, `Nhat_Ky_KimBeauty_${todayLocalStr().split('-').reverse().join('-')}.xlsx`);
         }
 
+        // Hiện lỗi ngay trên form (không phụ thuộc hộp thoại alert, vì trình duyệt có thể chặn alert)
+        function logFormError(msg) {
+            const el = document.getElementById('logFormError');
+            if (el) { el.textContent = '⚠ ' + msg; el.classList.remove('hidden'); try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (x) {} }
+            try { alert(msg); } catch (x) {}
+        }
+        function clearLogFormError() { const el = document.getElementById('logFormError'); if (el) { el.textContent = ''; el.classList.add('hidden'); } }
+        function dbErrText(err) {
+            const m = (err && (err.message || err.code)) || String(err);
+            return /permission/i.test(m) ? 'Không có quyền ghi dữ liệu (kiểm tra lại Firebase Rules / đăng nhập lại). Chi tiết: ' + m : m;
+        }
+
+        let isSavingLog = false;
         function saveCustomerLog(e) {
-            e.preventDefault();
+            if (e && e.preventDefault) e.preventDefault();
+            if (isSavingLog) return;
+            clearLogFormError();
+            try { saveCustomerLogInner(e); }
+            catch (err) { console.error(err); isSavingLog = false; logFormError('Lỗi khi lưu: ' + (err && err.message ? err.message : err)); }
+        }
+
+        function saveCustomerLogInner(e) {
+            const sideEffects = []; // các ghi phụ (khách mới, thẻ combo, trừ buổi, trừ kho) chỉ chạy SAU KHI lưu hóa đơn thành công
             const date = document.getElementById('logDate').value;
             const custSelect = document.getElementById('logCustomerSelect').value;
 
@@ -2868,8 +2903,10 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                 const newName = document.getElementById('logNewCustName').value.trim();
                 const newPhone = document.getElementById('logNewCustPhone').value.trim();
                 const newAddress = document.getElementById('logNewCustAddress').value.trim();
-                if (!newName || !newPhone) { alert("Vui lòng nhập tên và SĐT!"); return; }
-                actualCustKey = db.ref(SPA_PATH + '/customers').push({ name: newName, phone: newPhone, address: newAddress }).key;
+                if (!newName || !newPhone) { logFormError("Vui lòng nhập tên và SĐT!"); return; }
+                actualCustKey = db.ref(SPA_PATH + '/customers').push().key;
+                const newCustData = { name: newName, phone: newPhone, address: newAddress };
+                sideEffects.push(() => db.ref(`${SPA_PATH}/customers/${actualCustKey}`).update(newCustData));
                 customerName = `${newName} (${newPhone})`;
             } else if (custSelect !== 'KHACH_LA') {
                 actualCustKey = custSelect;
@@ -2880,7 +2917,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
             // --- Mua Combo cần có khách hàng để lưu thẻ liệu trình ---
             if (!actualCustKey) {
                 const hasComboRow = Array.from(document.querySelectorAll('.service-row')).some(r => r.getAttribute('data-itemtype') === 'COMBO' && r.querySelector('.serv-select').value);
-                if (hasComboRow) { alert('Khách mua Combo cần có thông tin khách hàng để lưu thẻ liệu trình.\nHãy chọn khách trong danh sách hoặc "Khách hàng mới" (không chọn Khách lạ).'); return; }
+                if (hasComboRow) { logFormError('Khách mua Combo cần có thông tin khách hàng để lưu thẻ liệu trình.\nHãy chọn khách trong danh sách hoặc "Khách hàng mới" (không chọn Khách lạ).'); return; }
             }
 
             // --- Kiểm tra tồn kho trước khi lưu (gộp các dòng cùng 1 sản phẩm) ---
@@ -2896,7 +2933,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
             for (const k of Object.keys(stockNeed)) {
                 const sv = globalServices[k];
                 if (sv && typeof sv.stock === 'number' && stockNeed[k] > sv.stock) {
-                    alert(`Sản phẩm "${sv.name}" chỉ còn ${sv.stock} trong kho, không đủ để bán ${stockNeed[k]}!`);
+                    logFormError(`Sản phẩm "${sv.name}" chỉ còn ${sv.stock} trong kho, không đủ để bán ${stockNeed[k]}!`);
                     return;
                 }
             }
@@ -2911,7 +2948,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                 const usedSessions = parseInt(parent.querySelector('.combo-used-sessions').value) || 1;
                 const staffName = parent.querySelector('.combo-staff-select').value;
 
-                if (!staffName) { alert(`Chọn KTV cho Combo "${servName}"!`); return; }
+                if (!staffName) { logFormError(`Chọn KTV cho Combo "${servName}"!`); return; }
 
                 const staffKey = Object.keys(globalStaff).find(k => globalStaff[k].name === staffName);
                 const staffObj = staffKey ? globalStaff[staffKey] : null;
@@ -2930,9 +2967,10 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
 
                 items.push({ service: `${servName} (Liệu trình ${usedSessions} buổi)`, price: 0, staff: staffName, commissionAmount: sessionCommAmount });
 
-                if (actualCustKey && comboKey && globalCustomers[actualCustKey].combos[comboKey]) {
+                if (actualCustKey && comboKey && globalCustomers[actualCustKey] && globalCustomers[actualCustKey].combos && globalCustomers[actualCustKey].combos[comboKey]) {
                     const currentRem = globalCustomers[actualCustKey].combos[comboKey].remainingSessions || 0;
-                    db.ref(`${SPA_PATH}/customers/${actualCustKey}/combos/${comboKey}/remainingSessions`).set(Math.max(0, currentRem - usedSessions));
+                    const ck = actualCustKey;
+                    sideEffects.push(() => db.ref(`${SPA_PATH}/customers/${ck}/combos/${comboKey}/remainingSessions`).set(Math.max(0, currentRem - usedSessions)));
                 }
             }
 
@@ -2944,7 +2982,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                 const itemType = row.getAttribute('data-itemtype') || 'SINGLE';
 
                 if (serviceName) {
-                    if (!staffName) { alert(`Chọn nhân viên cho "${serviceName}"!`); return; }
+                    if (!staffName) { logFormError(`Chọn nhân viên cho "${serviceName}"!`); return; }
 
                     const staffKey = Object.keys(globalStaff).find(k => globalStaff[k].name === staffName);
                     const staffObj = staffKey ? globalStaff[staffKey] : null;
@@ -2969,14 +3007,14 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
 
                     if (servObj && servObj.type === 'COMBO' && actualCustKey) {
                         const totalS = comboSessions;
-                        db.ref(`${SPA_PATH}/customers/${actualCustKey}/combos`).push({
-                            serviceName: serviceName, totalSessions: totalS, remainingSessions: totalS, totalPrice: price, pricePerSession: price / totalS, buyDate: date
-                        });
+                        const comboData = { serviceName: serviceName, totalSessions: totalS, remainingSessions: totalS, totalPrice: price, pricePerSession: price / totalS, buyDate: date };
+                        const comboCustKey = actualCustKey;
+                        sideEffects.push(() => db.ref(`${SPA_PATH}/customers/${comboCustKey}/combos`).push(comboData));
                     }
                 }
             }
 
-            if (items.length === 0) { alert("Chọn ít nhất 1 dịch vụ hoặc sản phẩm!"); return; }
+            if (items.length === 0) { logFormError("Chọn ít nhất 1 dịch vụ hoặc sản phẩm!"); return; }
 
             const cash = parseFloat(document.getElementById('logCashAmount').value) || 0;
             const transfer = parseFloat(document.getElementById('logTransferAmount').value) || 0;
@@ -2987,22 +3025,44 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
 
             const logObj = { date, customer: customerName, service: serviceListText, cash, transfer, total: actualTotalPaid, staff: staffListText, commissionAmount: totalCommissionAmount, items };
             if (date === todayLocalStr()) logObj.time = new Date().toTimeString().slice(0, 5); // giờ in trên bill (chỉ khi lập đúng ngày hôm nay)
+            isSavingLog = true;
+            const submitBtn = document.getElementById('logSubmitBtn');
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Đang lưu...'; }
+            const endSaving = () => { isSavingLog = false; if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'XÁC NHẬN THANH TOÁN'; } };
+
             let newLogRef = null;
             newLogRef = db.ref(SPA_PATH + '/service_logs').push(logObj, (err) => {
-                if(!err) {
-                    // Tự động trừ kho các sản phẩm vừa bán
-                    Object.keys(stockNeed).forEach(k => {
-                        const sv = globalServices[k];
-                        if (sv && typeof sv.stock === 'number') db.ref(`${SPA_PATH}/services/${k}/stock`).set(Math.max(0, sv.stock - stockNeed[k]));
-                    });
-                    const bookingKey = document.getElementById('logFromBookingKey').value;
-                    if (bookingKey) db.ref(SPA_PATH + '/bookings/' + bookingKey).update({ status: 'Đã xong' });
-                    toggleAddLogForm();
-                    if (confirm(`HOÀN THÀNH!\n- Khách: ${customerName}\n- Tổng thu: ${formatVND(actualTotalPaid)}\n\nBạn có muốn IN HÓA ĐƠN cho khách không?`)) {
-                        printBillFromLog(logObj, newLogRef && newLogRef.key);
-                    }
-                }
+                endSaving();
+                if (err) { logFormError('Không lưu được hóa đơn: ' + dbErrText(err)); return; }
+
+                // Hóa đơn đã lưu -> mới ghi khách mới / thẻ combo / trừ buổi / trừ kho
+                const failed = [];
+                const track = (r) => { if (r && typeof r.catch === 'function') r.catch(x => alert('Hóa đơn đã lưu nhưng có bước phụ bị lỗi: ' + dbErrText(x))); };
+                sideEffects.forEach(fn => { try { track(fn()); } catch (x) { failed.push(x.message); } });
+                Object.keys(stockNeed).forEach(k => {
+                    const sv = globalServices[k];
+                    if (sv && typeof sv.stock === 'number') track(db.ref(`${SPA_PATH}/services/${k}/stock`).set(Math.max(0, sv.stock - stockNeed[k])));
+                });
+                const bookingKey = document.getElementById('logFromBookingKey').value;
+                if (bookingKey) track(db.ref(SPA_PATH + '/bookings/' + bookingKey).update({ status: 'Đã xong' }));
+                if (failed.length) alert('Hóa đơn đã lưu nhưng có bước phụ bị lỗi: ' + failed.join('; '));
+
+                toggleAddLogForm();
+                showSaveDone(logObj, newLogRef && newLogRef.key, customerName, actualTotalPaid);
             });
+        }
+
+        // Thông báo lưu thành công (hiện ngay trên màn hình) + nút in hóa đơn
+        let lastSavedLog = null;
+        function showSaveDone(log, key, customerName, total) {
+            lastSavedLog = { log, key };
+            document.getElementById('saveDoneInfo').innerHTML = `Khách: <b>${billEsc(customerName)}</b><br>Tổng thu: <b>${formatVND(total)}</b>`;
+            document.getElementById('saveDoneModal').classList.remove('hidden');
+        }
+        function closeSaveDone() { document.getElementById('saveDoneModal').classList.add('hidden'); }
+        function printSavedLog() {
+            if (lastSavedLog) printBillFromLog(lastSavedLog.log, lastSavedLog.key);
+            closeSaveDone();
         }
 
         function toggleServiceTypeInput() {
@@ -3231,6 +3291,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
             const form = document.getElementById('addLogForm');
             if (forceOpen || form.classList.contains('hidden')) {
                 form.classList.remove('hidden');
+                clearLogFormError();
                 document.getElementById('serviceRowsContainer').innerHTML = '';
                 document.getElementById('logFromBookingKey').value = '';
                 document.getElementById('customerComboContainerBox').classList.add('hidden');
@@ -3565,7 +3626,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                         ${comboBarHTML(cb)}
                         <div class="flex justify-between items-center text-[11px] text-gray-600">
                             <span>Đã dùng <strong>${used}</strong>/${tot} buổi</span>
-                            ${isAdmin ? `<button type="button" onclick="document.getElementById('comboEdit_${cbKey}').classList.toggle('hidden')" class="text-brand-green font-bold">✏️ Sửa số buổi</button>` : ''}
+                            ${isAdmin ? `<span class="flex items-center gap-3"><button type="button" onclick="document.getElementById('comboEdit_${cbKey}').classList.toggle('hidden')" class="text-brand-green font-bold">✏️ Sửa số buổi</button><button type="button" onclick="deleteCustomerCombo('${key}','${cbKey}',this)" class="text-red-500 font-bold">🗑 Xóa thẻ</button></span>` : ''}
                         </div>
                         ${isAdmin ? `<div id="comboEdit_${cbKey}" class="hidden grid grid-cols-3 gap-2 items-end pt-2 border-t border-amber-200">
                             <div><span class="text-[10px] font-bold text-gray-500">Tổng số buổi</span><input type="number" min="1" step="1" value="${tot}" id="comboTot_${cbKey}" class="w-full px-2 py-1 bg-white rounded-lg border text-xs font-bold"></div>
@@ -3574,6 +3635,16 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                         </div>` : ''}
                     </div>`;
             }).join('');
+        }
+
+        // Xóa thẻ combo nhập nhầm / bị trùng: bấm 2 lần để xác nhận (không dùng hộp thoại confirm vì trình duyệt có thể chặn)
+        function deleteCustomerCombo(custKey, cbKey, btn) {
+            if (btn.dataset.armed !== '1') {
+                btn.dataset.armed = '1'; btn.textContent = 'Bấm lần nữa để xóa';
+                setTimeout(() => { if (btn.isConnected) { btn.dataset.armed = ''; btn.textContent = '🗑 Xóa thẻ'; } }, 3500);
+                return;
+            }
+            db.ref(`${SPA_PATH}/customers/${custKey}/combos/${cbKey}`).remove((err) => { if (!err) renderCustomerComboList(custKey); });
         }
 
         function saveComboSessions(custKey, cbKey) {
