@@ -975,8 +975,10 @@
         <div id="saveDoneModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
             <div class="bg-white w-full max-w-xs rounded-3xl p-5 shadow-2xl text-center space-y-3">
                 <div class="text-4xl">✅</div>
-                <h3 class="font-bold text-base text-brand-darkgreen">HOÀN THÀNH!</h3>
+                <h3 id="saveDoneTitle" class="font-bold text-base text-brand-darkgreen">HOÀN THÀNH!</h3>
                 <p id="saveDoneInfo" class="text-xs text-gray-700 leading-relaxed"></p>
+                <ul id="saveDoneSteps" class="text-left text-[11px] text-gray-700 space-y-1 bg-gray-50 rounded-xl p-2.5"></ul>
+                <div id="saveDoneBuild" class="text-[10px] text-gray-400"></div>
                 <div class="flex gap-2 pt-1">
                     <button type="button" onclick="closeSaveDone()" class="w-1/2 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs">Đóng</button>
                     <button type="button" onclick="printSavedLog()" class="w-1/2 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs">🖨 In hóa đơn</button>
@@ -2906,7 +2908,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                 if (!newName || !newPhone) { logFormError("Vui lòng nhập tên và SĐT!"); return; }
                 actualCustKey = db.ref(SPA_PATH + '/customers').push().key;
                 const newCustData = { name: newName, phone: newPhone, address: newAddress };
-                sideEffects.push(() => db.ref(`${SPA_PATH}/customers/${actualCustKey}`).update(newCustData));
+                sideEffects.push({ label: 'Tạo khách hàng mới "' + newName + '"', run: () => db.ref(`${SPA_PATH}/customers/${actualCustKey}`).update(newCustData) });
                 customerName = `${newName} (${newPhone})`;
             } else if (custSelect !== 'KHACH_LA') {
                 actualCustKey = custSelect;
@@ -2970,7 +2972,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                 if (actualCustKey && comboKey && globalCustomers[actualCustKey] && globalCustomers[actualCustKey].combos && globalCustomers[actualCustKey].combos[comboKey]) {
                     const currentRem = globalCustomers[actualCustKey].combos[comboKey].remainingSessions || 0;
                     const ck = actualCustKey;
-                    sideEffects.push(() => db.ref(`${SPA_PATH}/customers/${ck}/combos/${comboKey}/remainingSessions`).set(Math.max(0, currentRem - usedSessions)));
+                    sideEffects.push({ label: 'Trừ ' + usedSessions + ' buổi combo "' + servName + '"', run: () => db.ref(`${SPA_PATH}/customers/${ck}/combos/${comboKey}/remainingSessions`).set(Math.max(0, currentRem - usedSessions)) });
                 }
             }
 
@@ -3005,11 +3007,35 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                     if (itemType === 'COMBO') { itemObj.itemType = 'COMBO'; itemObj.sessions = comboSessions; itemObj.service = `[Combo] ${serviceName} (${comboSessions} buổi)`; }
                     items.push(itemObj);
 
+                    // Dùng luôn N buổi ngay khi mua: thêm dòng buổi dùng (0đ), thẻ chỉ còn (tổng - N)
+                    let useNow = 0;
+                    if (itemType === 'COMBO') {
+                        const useChk = row.querySelector('.combo-use-now');
+                        if (useChk && useChk.checked) {
+                            useNow = Math.max(1, parseInt(row.querySelector('.combo-use-now-qty').value) || 1);
+                            if (useNow > comboSessions) { logFormError(`Số buổi dùng luôn (${useNow}) không được lớn hơn số buổi của gói (${comboSessions})!`); return; }
+                            // NV làm dịch vụ: chọn riêng, bỏ trống = cùng NV bán. Hoa hồng theo cấp bậc của NV làm dịch vụ
+                            const useStaffName = row.querySelector('.combo-use-now-staff').value || staffName;
+                            const useStaffKey = Object.keys(globalStaff).find(k => globalStaff[k].name === useStaffName);
+                            const useStaffObj = useStaffKey ? globalStaff[useStaffKey] : null;
+                            const useCommVal = (useStaffObj && servObj && servObj.commissions) ? (servObj.commissions[useStaffObj.level] || 0) : 0;
+                            const perSessionPrice = price / comboSessions;
+                            let useComm;
+                            if (servObj && servObj.sessionCommissions && useStaffObj) {
+                                const sv = Number(servObj.sessionCommissions[useStaffObj.level]) || 0;
+                                useComm = (servObj.sessionCommType === 'PERCENT') ? ((perSessionPrice * sv) / 100 * useNow) : (sv * useNow);
+                            } else {
+                                useComm = (servObj && servObj.commType === 'FIXED') ? (useCommVal * useNow) : ((perSessionPrice * useCommVal) / 100 * useNow);
+                            }
+                            items.push({ service: `${serviceName} (Liệu trình ${useNow} buổi)`, price: 0, staff: useStaffName, commissionAmount: useComm });
+                        }
+                    }
+
                     if (servObj && servObj.type === 'COMBO' && actualCustKey) {
                         const totalS = comboSessions;
-                        const comboData = { serviceName: serviceName, totalSessions: totalS, remainingSessions: totalS, totalPrice: price, pricePerSession: price / totalS, buyDate: date };
+                        const comboData = { serviceName: serviceName, totalSessions: totalS, remainingSessions: totalS - useNow, totalPrice: price, pricePerSession: price / totalS, buyDate: date };
                         const comboCustKey = actualCustKey;
-                        sideEffects.push(() => db.ref(`${SPA_PATH}/customers/${comboCustKey}/combos`).push(comboData));
+                        sideEffects.push({ label: 'Lưu thẻ combo "' + serviceName + '" (' + totalS + ' buổi' + (useNow ? ', đã dùng ' + useNow : '') + ')', run: () => db.ref(`${SPA_PATH}/customers/${comboCustKey}/combos`).push(comboData) });
                     }
                 }
             }
@@ -3035,29 +3061,45 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                 endSaving();
                 if (err) { logFormError('Không lưu được hóa đơn: ' + dbErrText(err)); return; }
 
-                // Hóa đơn đã lưu -> mới ghi khách mới / thẻ combo / trừ buổi / trừ kho
-                const failed = [];
-                const track = (r) => { if (r && typeof r.catch === 'function') r.catch(x => alert('Hóa đơn đã lưu nhưng có bước phụ bị lỗi: ' + dbErrText(x))); };
-                sideEffects.forEach(fn => { try { track(fn()); } catch (x) { failed.push(x.message); } });
+                // Hóa đơn đã lưu -> lần lượt ghi khách mới / thẻ combo / trừ buổi / trừ kho, báo kết quả từng bước
+                const steps = sideEffects.slice();
                 Object.keys(stockNeed).forEach(k => {
                     const sv = globalServices[k];
-                    if (sv && typeof sv.stock === 'number') track(db.ref(`${SPA_PATH}/services/${k}/stock`).set(Math.max(0, sv.stock - stockNeed[k])));
+                    if (sv && typeof sv.stock === 'number') steps.push({ label: 'Trừ kho "' + sv.name + '"', run: () => db.ref(`${SPA_PATH}/services/${k}/stock`).set(Math.max(0, sv.stock - stockNeed[k])) });
                 });
                 const bookingKey = document.getElementById('logFromBookingKey').value;
-                if (bookingKey) track(db.ref(SPA_PATH + '/bookings/' + bookingKey).update({ status: 'Đã xong' }));
-                if (failed.length) alert('Hóa đơn đã lưu nhưng có bước phụ bị lỗi: ' + failed.join('; '));
+                if (bookingKey) steps.push({ label: 'Cập nhật lịch hẹn "Đã xong"', run: () => db.ref(SPA_PATH + '/bookings/' + bookingKey).update({ status: 'Đã xong' }) });
 
                 toggleAddLogForm();
-                showSaveDone(logObj, newLogRef && newLogRef.key, customerName, actualTotalPaid);
+                const results = [{ label: 'Lưu hóa đơn vào Nhật ký', ok: true }];
+                showSaveDone(logObj, newLogRef && newLogRef.key, customerName, actualTotalPaid, results, steps.length > 0);
+                (async () => {
+                    for (const st of steps) {
+                        try { await st.run(); results.push({ label: st.label, ok: true }); }
+                        catch (x) { results.push({ label: st.label, ok: false, err: dbErrText(x) }); }
+                        renderSaveDoneSteps(results, true);
+                    }
+                    renderSaveDoneSteps(results, false);
+                })();
             });
         }
 
         // Thông báo lưu thành công (hiện ngay trên màn hình) + nút in hóa đơn
         let lastSavedLog = null;
-        function showSaveDone(log, key, customerName, total) {
+        const POS_BUILD = 'v7-20261020';
+        function showSaveDone(log, key, customerName, total, results, pending) {
             lastSavedLog = { log, key };
             document.getElementById('saveDoneInfo').innerHTML = `Khách: <b>${billEsc(customerName)}</b><br>Tổng thu: <b>${formatVND(total)}</b>`;
+            renderSaveDoneSteps(results || [], !!pending);
             document.getElementById('saveDoneModal').classList.remove('hidden');
+        }
+        function renderSaveDoneSteps(results, pending) {
+            const bad = results.some(r => !r.ok);
+            document.getElementById('saveDoneTitle').textContent = bad ? '⚠ LƯU CHƯA ĐẦY ĐỦ' : (pending ? 'ĐANG LƯU...' : 'HOÀN THÀNH!');
+            document.getElementById('saveDoneTitle').className = 'font-bold text-base ' + (bad ? 'text-red-600' : 'text-brand-darkgreen');
+            document.getElementById('saveDoneSteps').innerHTML = results.map(r => `<li>${r.ok ? '✅' : '❌'} ${billEsc(r.label)}${r.ok ? '' : `<div class="text-red-600 font-bold pl-5">${billEsc(r.err)}</div>`}</li>`).join('')
+                + (pending ? '<li>⏳ Đang lưu các bước còn lại...</li>' : '');
+            document.getElementById('saveDoneBuild').textContent = 'Bản POS ' + POS_BUILD;
         }
         function closeSaveDone() { document.getElementById('saveDoneModal').classList.add('hidden'); }
         function printSavedLog() {
@@ -3193,6 +3235,13 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                 staffOptionsHTML += `<option value="${st.name}">${st.name} (${st.level})</option>`;
             });
 
+            // NV làm dịch vụ (buổi dùng luôn) có thể khác NV bán gói; để trống = cùng NV bán
+            let comboUseStaffOptionsHTML = '<option value="">-- Cùng nhân viên bán --</option>';
+            Object.keys(globalStaff).forEach(k => {
+                const st = globalStaff[k];
+                comboUseStaffOptionsHTML += `<option value="${st.name}">${st.name} (${st.level})</option>`;
+            });
+
             const rowHTML = `
                 <div id="${rowId}" data-itemtype="${itemType}" data-unit="${presetPrice}" class="service-row p-2.5 rounded-xl border ${isProduct ? 'border-blue-200 bg-blue-50/30' : isCombo ? 'border-amber-300 bg-amber-50/60' : 'border-gray-200 bg-white'} space-y-2">
                     <div class="flex items-center gap-2">
@@ -3206,6 +3255,16 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                         <span class="text-[10px] font-bold text-amber-800 shrink-0">🎁 Số buổi của khách:</span>
                         <input type="number" min="1" step="1" value="${comboDefaultSessions}" oninput="onComboSessionsChange('${rowId}')" title="Có thể sửa riêng cho từng khách" class="combo-sessions w-16 px-2 py-1 bg-white rounded-lg border border-amber-300 text-xs font-bold text-amber-900 text-center">
                         <span class="combo-hint text-[10px] font-bold text-amber-800"></span>
+                    </div>
+                    <label class="flex items-center gap-1.5 flex-wrap text-[11px] font-bold text-amber-900 cursor-pointer">
+                        <input type="checkbox" class="combo-use-now w-4 h-4 accent-amber-600" onchange="this.closest('.service-row').querySelector('.combo-use-now-box').classList.toggle('hidden', !this.checked)">
+                        <span>Dùng luôn</span>
+                        <input type="number" min="1" step="1" value="1" class="combo-use-now-qty w-12 px-1.5 py-0.5 bg-white rounded-lg border border-amber-300 text-xs font-bold text-amber-900 text-center">
+                        <span>buổi ngay hôm nay (trừ vào thẻ, không thu thêm tiền)</span>
+                    </label>
+                    <div class="combo-use-now-box hidden flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-amber-800 shrink-0">💆 NV làm dịch vụ:</span>
+                        <select class="combo-use-now-staff w-full px-2.5 py-1.5 bg-amber-50 rounded-lg border text-xs font-bold">${comboUseStaffOptionsHTML}</select>
                     </div>` : ''}
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] font-bold text-amber-800 shrink-0">👤 NV:</span>
