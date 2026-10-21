@@ -373,6 +373,11 @@
 
                     <input type="text" id="searchCust" onkeyup="filterCustomers()" placeholder="🔍 Tìm theo Tên hoặc Số điện thoại..." class="w-full px-3.5 py-2 bg-brand-cream/50 rounded-xl border border-gray-200 text-xs">
 
+                    <button type="button" onclick="openComboFix()" class="admin-only hidden w-full py-2 bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-300 font-bold rounded-xl text-xs">🔍 Kiểm tra thẻ combo thiếu (đối chiếu Nhật ký ↔ hồ sơ khách)</button>
+                    <div id="dupCustBanner" class="hidden flex items-center justify-between gap-2 bg-amber-50 border border-amber-300 rounded-xl px-3 py-2">
+                        <span class="text-[11px] font-bold text-amber-900"></span>
+                        <button type="button" onclick="openMergeCustomers()" class="shrink-0 bg-amber-500 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg">Gộp khách trùng</button>
+                    </div>
                     <div id="customerList" class="space-y-2.5"></div>
                 </div>
             </section>
@@ -997,6 +1002,41 @@
                         <button type="submit" class="w-1/2 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs">Lưu</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- MODAL KHÔI PHỤC THẺ COMBO THIẾU -->
+        <div id="comboFixModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-3 max-h-[92vh] overflow-y-auto">
+                <div class="flex justify-between items-start border-b pb-2">
+                    <h3 class="font-bold text-base text-brand-darkgreen">🔍 Thẻ combo còn thiếu</h3>
+                    <button type="button" onclick="closeComboFix()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 font-bold">✕</button>
+                </div>
+                <p class="text-[11px] text-gray-600">Mỗi lần mua combo trong Nhật ký cần có 1 thẻ trong hồ sơ khách. Mục này tìm những lần mua chưa có thẻ và tạo bù. Nếu bạn đã chủ động xóa thẻ nào đó thì đừng khôi phục thẻ đó. Số buổi đã dùng ở các hóa đơn sau không tự trừ, hãy chỉnh bằng "✏️ Sửa số buổi" trong hồ sơ khách.</p>
+                <div id="comboFixInfo" class="text-xs text-gray-700 bg-gray-50 rounded-xl px-3 py-2"></div>
+                <div id="comboFixList" class="space-y-1.5 max-h-60 overflow-y-auto"></div>
+                <div id="comboFixResult" class="space-y-0.5"></div>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closeComboFix()" class="w-1/3 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs">Đóng</button>
+                    <button type="button" id="comboFixBtn" onclick="runComboFix()" class="w-2/3 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs disabled:opacity-50">Tạo thẻ còn thiếu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL GỘP KHÁCH TRÙNG SĐT -->
+        <div id="mergeCustModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-3 max-h-[92vh] overflow-y-auto">
+                <div class="flex justify-between items-start border-b pb-2">
+                    <h3 class="font-bold text-base text-brand-darkgreen">👥 Gộp khách trùng số điện thoại</h3>
+                    <button type="button" onclick="closeMergeCustomers()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 font-bold">✕</button>
+                </div>
+                <p class="text-[11px] text-gray-600">Các hồ sơ cùng số điện thoại sẽ được gộp vào hồ sơ tạo sớm nhất; toàn bộ thẻ combo được chuyển sang. Nhật ký và hóa đơn cũ không bị ảnh hưởng.</p>
+                <div id="mergeCustList" class="space-y-2"></div>
+                <div id="mergeCustResult" class="text-xs font-bold"></div>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closeMergeCustomers()" class="w-1/3 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs">Đóng</button>
+                    <button type="button" id="mergeCustBtn" onclick="runMergeCustomers()" class="w-2/3 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs disabled:opacity-50">Gộp ngay</button>
+                </div>
             </div>
         </div>
 
@@ -3246,10 +3286,19 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                 const newPhone = document.getElementById('logNewCustPhone').value.trim();
                 const newAddress = document.getElementById('logNewCustAddress').value.trim();
                 if (!newName || !newPhone) { logFormError("Vui lòng nhập tên và SĐT!"); return; }
-                actualCustKey = db.ref(SPA_PATH + '/customers').push().key;
-                const newCustData = { name: newName, phone: newPhone, address: newAddress };
-                sideEffects.push({ label: 'Tạo khách hàng mới "' + newName + '"', run: () => db.ref(`${SPA_PATH}/customers/${actualCustKey}`).update(newCustData) });
-                customerName = `${newName} (${newPhone})`;
+                const dupKey = findCustomerKeyByPhone(newPhone);
+                if (dupKey) {
+                    // SĐT đã có trong hệ thống -> dùng lại hồ sơ cũ (tránh 1 khách bị tách thành nhiều hồ sơ, combo bị chia đôi)
+                    actualCustKey = dupKey;
+                    const dc = globalCustomers[dupKey];
+                    customerName = `${dc.name} (${dc.phone})`;
+                    sideEffects.push({ label: 'SĐT đã có sẵn ➜ dùng lại hồ sơ khách "' + dc.name + '" (không tạo trùng)', run: () => Promise.resolve() });
+                } else {
+                    actualCustKey = db.ref(SPA_PATH + '/customers').push().key;
+                    const newCustData = { name: newName, phone: newPhone, address: newAddress };
+                    sideEffects.push({ label: 'Tạo khách hàng mới "' + newName + '"', run: () => db.ref(`${SPA_PATH}/customers/${actualCustKey}`).update(newCustData) });
+                    customerName = `${newName} (${newPhone})`;
+                }
             } else if (custSelect !== 'KHACH_LA') {
                 actualCustKey = custSelect;
                 const cObj = globalCustomers[actualCustKey];
@@ -3428,7 +3477,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
 
         // Thông báo lưu thành công (hiện ngay trên màn hình) + nút in hóa đơn
         let lastSavedLog = null;
-        const POS_BUILD = 'v12-20261021';
+        const POS_BUILD = 'v14-20261021';
         (function () { const el = document.getElementById('posBuildLabel'); if (el) el.textContent = 'Bản POS ' + POS_BUILD; })();
         function showSaveDone(log, key, customerName, total, results, pending) {
             lastSavedLog = { log, key };
@@ -3895,9 +3944,148 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
             });
         }
 
+        // ===================== KHÁCH TRÙNG SĐT: phát hiện & gộp hồ sơ =====================
+        function normPhone(p) {
+            let d = String(p || '').replace(/\D/g, '');
+            if (d.startsWith('84') && d.length >= 11) d = '0' + d.slice(2);
+            return d;
+        }
+        function findCustomerKeyByPhone(phone) {
+            const n = normPhone(phone);
+            if (!n) return null;
+            return Object.keys(globalCustomers).sort().find(k => normPhone(globalCustomers[k].phone) === n) || null;
+        }
+        // Nhóm các hồ sơ cùng SĐT (key sắp theo thời gian tạo: hồ sơ cũ nhất đứng đầu = hồ sơ giữ lại)
+        function findDuplicateCustomerGroups() {
+            const by = {};
+            Object.keys(globalCustomers).sort().forEach(k => {
+                const n = normPhone(globalCustomers[k].phone);
+                if (n) (by[n] = by[n] || []).push(k);
+            });
+            return Object.keys(by).filter(n => by[n].length > 1).map(n => ({ phone: n, keys: by[n] }));
+        }
+        function updateDupCustomerBanner() {
+            const el = document.getElementById('dupCustBanner');
+            if (!el) return;
+            const isAdmin = currentUser && (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'MANAGER');
+            const groups = isAdmin ? findDuplicateCustomerGroups() : [];
+            el.classList.toggle('hidden', groups.length === 0);
+            if (groups.length) el.querySelector('span').textContent = `⚠ Có ${groups.length} khách bị trùng số điện thoại (1 khách bị tách thành nhiều hồ sơ nên combo hiện không đủ).`;
+        }
+        // ===================== KIỂM TRA & KHÔI PHỤC THẺ COMBO THIẾU (đối chiếu Nhật ký với hồ sơ khách) =====================
+        function resolveCustomerKeyFromLog(log) {
+            const str = String(log.customer || '');
+            let k = Object.keys(globalCustomers).find(x => `${globalCustomers[x].name} (${globalCustomers[x].phone})` === str);
+            if (k) return k;
+            const m = str.match(/\(([^)]+)\)\s*$/);
+            return m ? findCustomerKeyByPhone(m[1]) : null;
+        }
+        function computeMissingComboCards() {
+            const purchases = [];
+            Object.keys(globalServiceLogs).forEach(lk => {
+                const log = globalServiceLogs[lk];
+                if (!log || !Array.isArray(log.items)) return;
+                log.items.forEach(it => {
+                    const nm = String(it.service || '');
+                    const m = nm.match(/^\[Combo\] (.+?)(?: \((\d+) buổi\))?$/);
+                    if (!m && it.itemType !== 'COMBO') return;
+                    const name = m ? m[1] : itemServiceName(it);
+                    const sessions = parseInt(it.sessions) || parseInt(m && m[2]) || 0;
+                    // buổi dùng luôn ngay trong cùng hóa đơn
+                    let used = 0;
+                    log.items.forEach(x => { const mm = String(x.service || '').match(/^(.+) \(Liệu trình (\d+) buổi\)$/); if (mm && mm[1] === name && (Number(x.price) || 0) === 0) used += parseInt(mm[2]) || 0; });
+                    purchases.push({ logKey: lk, date: log.date || '', custKey: resolveCustomerKeyFromLog(log), customer: log.customer || '', name, sessions, price: Number(it.price) || 0, used });
+                });
+            });
+            purchases.sort((a, b) => (a.date + a.logKey).localeCompare(b.date + b.logKey));
+            const groups = {};
+            purchases.forEach(p => { if (p.custKey) (groups[p.custKey + '|' + p.name] = groups[p.custKey + '|' + p.name] || []).push(p); });
+            const missing = [], unknown = purchases.filter(p => !p.custKey);
+            Object.keys(groups).forEach(g => {
+                const list = groups[g], custKey = list[0].custKey, name = list[0].name;
+                const cards = Object.values((globalCustomers[custKey] || {}).combos || {}).filter(c => c && c.serviceName === name).length;
+                const lack = list.length - cards;
+                if (lack > 0) list.slice(-lack).forEach(p => missing.push(p)); // thiếu thẻ nào thì lấy các lần mua gần nhất
+            });
+            return { missing, unknown, totalPurchases: purchases.length };
+        }
+        function comboFixData(p) {
+            const sv = Object.values(globalServices).find(x => x.name === p.name);
+            const total = p.sessions || parseInt(sv && sv.sessions) || 10;
+            return { serviceName: p.name, totalSessions: total, remainingSessions: Math.max(0, total - p.used), totalPrice: p.price, pricePerSession: p.price / total, buyDate: p.date };
+        }
+        let comboFixPlan = [];
+        function openComboFix() {
+            const r = computeMissingComboCards();
+            comboFixPlan = r.missing;
+            document.getElementById('comboFixList').innerHTML = r.missing.map(p => `<div class="bg-gray-50 rounded-xl p-2.5 text-[11px]"><b>${billEsc(p.customer)}</b><div>${billEsc(p.name)} — mua ${formatDateVN(p.date)} — ${comboFixData(p).totalSessions} buổi${p.used ? ` (đã dùng luôn ${p.used})` : ''} — ${formatVND(p.price)}</div></div>`).join('')
+                || '<p class="text-xs text-emerald-700 font-bold">✅ Mọi combo trong Nhật ký đều đã có thẻ trong hồ sơ khách.</p>';
+            document.getElementById('comboFixInfo').innerHTML = `Đã đối chiếu <b>${r.totalPurchases}</b> lần mua combo trong Nhật ký: <b>${r.missing.length}</b> lần chưa có thẻ trong hồ sơ khách`
+                + (r.unknown.length ? `, ${r.unknown.length} lần không xác định được khách (bỏ qua)` : '') + '.';
+            document.getElementById('comboFixResult').innerHTML = '';
+            document.getElementById('comboFixBtn').disabled = r.missing.length === 0;
+            document.getElementById('comboFixModal').classList.remove('hidden');
+        }
+        function closeComboFix() { document.getElementById('comboFixModal').classList.add('hidden'); }
+        async function runComboFix() {
+            if (!currentUser || (currentUser.role !== 'SUPER_ADMIN' && currentUser.role !== 'MANAGER')) return;
+            const btn = document.getElementById('comboFixBtn'), out = document.getElementById('comboFixResult');
+            btn.disabled = true; out.innerHTML = '';
+            const lines = [];
+            for (const p of comboFixPlan.slice()) {
+                try { await db.ref(`${SPA_PATH}/customers/${p.custKey}/combos`).push(comboFixData(p)); lines.push(`✅ ${billEsc(p.customer)} — ${billEsc(p.name)}`); }
+                catch (e) { lines.push(`<span class="text-red-600">❌ ${billEsc(p.customer)} — ${billEsc(p.name)}: ${billEsc(dbErrText(e))}</span>`); }
+                out.innerHTML = lines.map(l => `<div class="text-[11px] font-bold">${l}</div>`).join('');
+            }
+            setTimeout(() => { const keep = out.innerHTML; openComboFix(); out.innerHTML = keep; }, 700);
+        }
+
+        function openMergeCustomers() {
+            const groups = findDuplicateCustomerGroups();
+            document.getElementById('mergeCustList').innerHTML = groups.map(g => {
+                const rows = g.keys.map((k, i) => {
+                    const c = globalCustomers[k], n = Object.keys(c.combos || {}).length;
+                    return `<div class="text-[11px] ${i === 0 ? 'font-bold text-brand-darkgreen' : 'text-gray-600'}">${i === 0 ? '✔ Giữ lại' : '➜ Gộp vào'}: ${billEsc(c.name)} (${billEsc(c.phone)}) — ${n} thẻ combo</div>`;
+                }).join('');
+                const total = g.keys.reduce((a, k) => a + Object.keys(globalCustomers[k].combos || {}).length, 0);
+                return `<div class="bg-gray-50 rounded-xl p-2.5 space-y-0.5">${rows}<div class="text-[10px] text-amber-800 font-bold">Sau khi gộp: 1 hồ sơ có ${total} thẻ combo</div></div>`;
+            }).join('') || '<p class="text-xs text-gray-500">Không còn khách trùng.</p>';
+            document.getElementById('mergeCustResult').textContent = '';
+            document.getElementById('mergeCustBtn').disabled = groups.length === 0;
+            document.getElementById('mergeCustModal').classList.remove('hidden');
+        }
+        function closeMergeCustomers() { document.getElementById('mergeCustModal').classList.add('hidden'); }
+        async function runMergeCustomers() {
+            if (!currentUser || (currentUser.role !== 'SUPER_ADMIN' && currentUser.role !== 'MANAGER')) return;
+            const btn = document.getElementById('mergeCustBtn'), out = document.getElementById('mergeCustResult');
+            btn.disabled = true;
+            let merged = 0, moved = 0;
+            try {
+                for (const g of findDuplicateCustomerGroups()) {
+                    const keep = g.keys[0], kc = globalCustomers[keep];
+                    for (const dup of g.keys.slice(1)) {
+                        const dc = globalCustomers[dup];
+                        for (const cb of Object.values(dc.combos || {})) { await db.ref(`${SPA_PATH}/customers/${keep}/combos`).push(cb); moved++; }
+                        const fill = {};
+                        if (!kc.address && dc.address) fill.address = dc.address;
+                        if (Object.keys(fill).length) await db.ref(`${SPA_PATH}/customers/${keep}`).update(fill);
+                        await db.ref(`${SPA_PATH}/customers/${dup}`).remove();
+                        merged++;
+                    }
+                }
+                out.className = 'text-xs font-bold text-emerald-700';
+                out.textContent = `✅ Đã gộp ${merged} hồ sơ trùng, chuyển ${moved} thẻ combo về hồ sơ chính.`;
+            } catch (e) {
+                out.className = 'text-xs font-bold text-red-600';
+                out.textContent = '⚠ Gộp chưa xong: ' + dbErrText(e) + ' — bấm gộp lại để tiếp tục (dữ liệu đã chuyển không bị mất).';
+            }
+            setTimeout(openMergeCustomers, 600);
+        }
+
         function renderCustomersUI() {
             const container = document.getElementById('customerList');
             if(!container) return;
+            updateDupCustomerBanner();
             container.innerHTML = '';
             Object.keys(globalCustomers).forEach(key => {
                 const c = globalCustomers[key];
@@ -3989,6 +4177,8 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
 
         function saveNewCustomer(e) {
             e.preventDefault();
+            const dupKey = findCustomerKeyByPhone(document.getElementById('newCustPhone').value);
+            if (dupKey) { alert(`Số điện thoại này đã có khách "${globalCustomers[dupKey].name}". Không thêm trùng — hãy dùng hồ sơ đã có.`); return; }
             db.ref(SPA_PATH + '/customers').push({
                 name: document.getElementById('newCustName').value.trim(),
                 phone: document.getElementById('newCustPhone').value.trim(),
