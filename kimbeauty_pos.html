@@ -890,6 +890,10 @@
                         <select id="bookService" class="w-full px-4 py-2.5 bg-brand-cream/50 rounded-xl border border-gray-200 text-sm">
                         </select>
                     </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Ngày hẹn *</label>
+                        <input type="date" id="bookDate" required class="w-full px-4 py-2.5 bg-brand-cream/50 rounded-xl border border-gray-200 text-sm">
+                    </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Giờ hẹn</label>
@@ -1885,7 +1889,7 @@
                         const addedKey = newKeys.find(k => !oldKeys.includes(k));
                         if (addedKey && newBookings[addedKey]) {
                             const b = newBookings[addedKey];
-                            sendLocalNotification("🔔 LỊCH HẸN MỚI", `• Tên: ${b.name}\n• Dịch vụ: ${b.service}\n• Giờ: ${b.time}`);
+                            sendLocalNotification("🔔 LỊCH HẸN MỚI", `• Tên: ${b.name}\n• Dịch vụ: ${b.service}\n• Ngày giờ: ${b.date ? formatDateVN(b.date) + ' ' : ''}${b.time}`);
                         }
                     }
                 }
@@ -3241,7 +3245,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
 
         // Thông báo lưu thành công (hiện ngay trên màn hình) + nút in hóa đơn
         let lastSavedLog = null;
-        const POS_BUILD = 'v8-20261020-sua';
+        const POS_BUILD = 'v9-20261021-lich-hen';
         function showSaveDone(log, key, customerName, total, results, pending) {
             lastSavedLog = { log, key };
             document.getElementById('saveDoneInfo').innerHTML = `Khách: <b>${billEsc(customerName)}</b><br>Tổng thu: <b>${formatVND(total)}</b>`;
@@ -3541,13 +3545,13 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                 return;
             }
 
-            pendingKeys.forEach(key => {
+            bookingKeysSorted(globalBookings, pendingKeys).reverse().forEach(key => {
                 const b = globalBookings[key];
                 container.insertAdjacentHTML('afterbegin', `
                     <div class="bg-white p-3 rounded-2xl border border-amber-200 flex justify-between items-center">
                         <div>
                             <div class="font-bold text-xs text-brand-darkgreen">${b.name} (${b.phone})</div>
-                            <div class="text-[11px] text-gray-600">${b.service} - ${b.time}</div>
+                            <div class="text-[11px] text-gray-600">${b.service} - ${b.date ? formatDateVN(b.date) + ' ' : ''}${b.time}</div>
                         </div>
                         <button onclick="startServiceFromBooking('${key}', '${b.name}', '${b.phone}', '${b.service}')" class="bg-amber-600 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow">▶ Phục vụ</button>
                     </div>
@@ -3702,6 +3706,27 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
             });
         }
 
+        // ===== Lịch hẹn: ngày hẹn, nhãn Hôm nay / Quá hẹn, sắp xếp theo thời gian =====
+        function bookingWhenHTML(b) {
+            if (!b.date) return `<strong>Giờ hẹn:</strong> ${b.time}`;
+            const today = todayLocalStr();
+            let tag = '';
+            if (b.status === 'Đang chờ') {
+                if (b.date === today) tag = ' <span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full text-[10px] font-bold">Hôm nay</span>';
+                else if (b.date < today) tag = ' <span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full text-[10px] font-bold">Đã quá hẹn</span>';
+            }
+            return `<strong>Ngày giờ hẹn:</strong> ${formatDateVN(b.date)} lúc ${b.time}${tag}`;
+        }
+        // Lịch đang chờ lên trước, gần nhất lên đầu; lịch cũ chưa có ngày xếp cuối
+        function bookingKeysSorted(data, keys) {
+            const k = keys || Object.keys(data);
+            const when = (b) => (b.date ? b.date : '9999-99-99') + ' ' + (b.time || '');
+            return k.slice().sort((x, y) => {
+                const A = data[x], B = data[y];
+                return ((A.status === 'Đã xong') - (B.status === 'Đã xong')) || when(A).localeCompare(when(B));
+            });
+        }
+
         function renderBookingsUI(data) {
             const container = document.getElementById('bookingList');
             if(!container) return;
@@ -3711,7 +3736,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                 return;
             }
 
-            Object.keys(data).forEach(key => {
+            bookingKeysSorted(data).reverse().forEach(key => {
                 const b = data[key];
                 const statusClass = b.status === 'Đã xong' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
                 const completeBtn = b.status === 'Đang chờ' ? `<button onclick="startServiceFromBooking('${key}', '${b.name}', '${b.phone}', '${b.service}'); switchTab('logs');" class="bg-amber-600 text-white text-xs px-3 py-1 rounded-lg font-bold">▶ Phục vụ</button>` : '';
@@ -3727,7 +3752,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                         </div>
                         <div class="bg-brand-cream/50 p-2 rounded-xl text-xs space-y-0.5">
                             <div><strong>Dịch vụ:</strong> <span class="text-brand-green font-bold">${b.service}</span></div>
-                            <div><strong>Giờ hẹn:</strong> ${b.time}</div>
+                            <div>${bookingWhenHTML(b)}</div>
                         </div>
                         <div class="flex justify-end gap-2 pt-1 border-t">
                             ${completeBtn}
@@ -3766,6 +3791,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                 name: document.getElementById('bookCustName').value.trim(),
                 phone: document.getElementById('bookCustPhone').value.trim(),
                 service: document.getElementById('bookService').value,
+                date: document.getElementById('bookDate').value || todayLocalStr(),
                 time: document.getElementById('bookTime').value,
                 status: document.getElementById('bookStatus').value
             }, (err) => { if(!err) { alert('Đã tạo lịch hẹn!'); closeBookingModal(); } });
@@ -3803,7 +3829,10 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
 
         function openAddCustomerModal() { document.getElementById('addCustModal').classList.remove('hidden'); }
         function closeAddCustomerModal() { document.getElementById('addCustModal').classList.add('hidden'); }
-        function openBookingModal() { document.getElementById('addBookingModal').classList.remove('hidden'); }
+        function openBookingModal() {
+            document.getElementById('bookDate').value = todayLocalStr();
+            document.getElementById('addBookingModal').classList.remove('hidden');
+        }
         function closeBookingModal() { document.getElementById('addBookingModal').classList.add('hidden'); }
 
         function showCustomerDetails(key, name, phone, address) {
