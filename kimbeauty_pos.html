@@ -134,6 +134,9 @@
                             <button onclick="openBankModal()" class="superadmin-only hidden w-full text-left px-4 py-2 text-xs hover:bg-brand-cream flex items-center gap-2 text-gray-700 font-medium">
                                 🏦 Tài khoản nhận tiền (STK)
                             </button>
+                            <button onclick="openRecalcModal()" class="admin-only hidden w-full text-left px-4 py-2 text-xs hover:bg-brand-cream flex items-center gap-2 text-gray-700 font-medium">
+                                🔄 Tính lại hoa hồng (hóa đơn cũ)
+                            </button>
                             <button onclick="openBillModal()" class="superadmin-only hidden w-full text-left px-4 py-2 text-xs hover:bg-brand-cream flex items-center gap-2 text-gray-700 font-medium">
                                 🧾 Mẫu hóa đơn (in bill)
                             </button>
@@ -990,6 +993,31 @@
                         <button type="submit" class="w-1/2 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs">Lưu</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- MODAL TÍNH LẠI HOA HỒNG CHO HÓA ĐƠN CŨ -->
+        <div id="recalcModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-lg rounded-3xl p-5 shadow-2xl space-y-3 max-h-[94vh] overflow-y-auto">
+                <div class="flex justify-between items-start border-b pb-2">
+                    <h3 class="font-bold text-base text-brand-darkgreen">🔄 Tính lại hoa hồng hóa đơn cũ</h3>
+                    <button type="button" onclick="closeRecalcModal()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 font-bold">✕</button>
+                </div>
+                <p class="text-[11px] text-gray-600">Hoa hồng được chốt vào hóa đơn lúc lưu. Khi bạn đổi mức hoa hồng (áp dụng từ ngày nào đó), dùng mục này để tính lại các hóa đơn cũ theo mức hoa hồng đúng của ngày đó (theo cấp bậc hiện tại của nhân viên). Xem danh sách bên dưới trước khi bấm cập nhật.</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="block text-[11px] font-bold text-gray-600 mb-1">Từ ngày</label><input type="date" id="recalcFrom" onchange="previewRecalc()" class="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold"></div>
+                    <div><label class="block text-[11px] font-bold text-gray-600 mb-1">Đến ngày (để trống = hết)</label><input type="date" id="recalcTo" onchange="previewRecalc()" class="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold"></div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-gray-600 mb-1">Dịch vụ</label>
+                    <select id="recalcService" onchange="previewRecalc()" class="w-full px-3 py-2 bg-white rounded-xl border border-gray-200 text-xs font-bold"></select>
+                </div>
+                <div id="recalcSummary" class="text-xs font-bold text-gray-700 bg-gray-50 rounded-xl px-3 py-2"></div>
+                <div id="recalcList" class="space-y-1 max-h-56 overflow-y-auto"></div>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closeRecalcModal()" class="w-1/3 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl text-xs">Đóng</button>
+                    <button type="button" id="recalcApplyBtn" onclick="applyRecalc()" class="w-2/3 py-2.5 bg-brand-green text-white font-bold rounded-xl text-xs disabled:opacity-50">Cập nhật hoa hồng</button>
+                </div>
             </div>
         </div>
 
@@ -2845,6 +2873,122 @@
             db.ref(SPA_PATH + '/services/' + key + '/stock').set(mode === 'ADD' ? cur + n : n);
         }
 
+        // ===================== TÍNH LẠI HOA HỒNG HÓA ĐƠN CŨ =====================
+        // Tên dịch vụ của một dòng hóa đơn (bỏ tiền tố [Combo]/[Sản phẩm], hậu tố số buổi / số lượng)
+        function itemServiceName(it) {
+            const nm = String(it.service || '');
+            if (it.productName) return it.productName;
+            let m = nm.match(/^(.+) \(Liệu trình (\d+) buổi\)$/);
+            if (m) return m[1];
+            m = nm.match(/^\[Combo\] (.+?)(?: \((\d+) buổi\))?$/);
+            if (m) return m[1];
+            m = nm.match(/^\[Sản phẩm\] (.+?)(?: x\d+)?$/);
+            if (m) return m[1];
+            return nm;
+        }
+
+        // Tính lại hoa hồng 1 dòng theo mức hoa hồng có hiệu lực tại ngày của hóa đơn. Trả về null nếu không tính lại được
+        function recalcItemCommission(log, it) {
+            const staffKey = Object.keys(globalStaff).find(k => globalStaff[k].name === it.staff);
+            const staffObj = staffKey ? globalStaff[staffKey] : null;
+            const name = itemServiceName(it);
+            const servKey = Object.keys(globalServices).find(k => globalServices[k].name === name);
+            if (!staffObj || !servKey) return null;
+            const sv = effectiveService(globalServices[servKey], log.date);
+            const commVal = (sv.commissions && sv.commissions[staffObj.level]) || 0;
+            const price = Number(it.price) || 0;
+            const nm = String(it.service || '');
+
+            const mSess = nm.match(/^(.+) \(Liệu trình (\d+) buổi\)$/);
+            if (mSess && price === 0) {
+                const n = parseInt(mSess[2]) || 1;
+                // Giá mỗi buổi: lấy từ thẻ combo của khách (mua gần nhất trước/đúng ngày dùng); không có thì lấy giá gói / số buổi
+                let perSession = 0;
+                const custKey = Object.keys(globalCustomers).find(k => `${globalCustomers[k].name} (${globalCustomers[k].phone})` === log.customer);
+                if (custKey && globalCustomers[custKey].combos) {
+                    const cbs = Object.values(globalCustomers[custKey].combos).filter(c => c && c.serviceName === name && Number(c.pricePerSession) > 0);
+                    const before = cbs.filter(c => !c.buyDate || c.buyDate <= log.date).sort((a, b) => String(a.buyDate || '').localeCompare(String(b.buyDate || '')));
+                    const pick = before.length ? before[before.length - 1] : cbs[0];
+                    if (pick) perSession = Number(pick.pricePerSession) || 0;
+                }
+                if (!perSession) perSession = (Number(sv.price) || 0) / (parseInt(sv.sessions) || 10);
+                if (sv.sessionCommissions) {
+                    const r = Number(sv.sessionCommissions[staffObj.level]) || 0;
+                    return (sv.sessionCommType === 'PERCENT') ? (perSession * r / 100 * n) : (r * n);
+                }
+                return (sv.commType === 'FIXED') ? (commVal * n) : (perSession * commVal / 100 * n);
+            }
+            const qty = (it.productName && it.qty > 0) ? it.qty : 1;
+            const isFreeSingle = (price === 0 && sv.type !== 'PRODUCT' && sv.type !== 'COMBO');
+            const base = isFreeSingle ? (Number(sv.price) || 0) : price; // dịch vụ lẻ tặng: % tính trên giá niêm yết
+            return (sv.commType === 'FIXED') ? (commVal * qty) : (base * commVal / 100);
+        }
+
+        let recalcPlan = [];
+        function openRecalcModal(opts) {
+            opts = opts || {};
+            const m = document.getElementById('userMenuDropdown'); if (m) m.classList.add('hidden');
+            const sel = document.getElementById('recalcService');
+            sel.innerHTML = '<option value="">Tất cả dịch vụ</option>' + Object.keys(globalServices).map(k => globalServices[k].name).sort().map(n => `<option value="${billEsc(n)}">${billEsc(n)}</option>`).join('');
+            sel.value = opts.serviceName || '';
+            const d = todayLocalStr();
+            document.getElementById('recalcFrom').value = opts.from || (d.slice(0, 7) + '-01');
+            document.getElementById('recalcTo').value = '';
+            document.getElementById('recalcModal').classList.remove('hidden');
+            previewRecalc();
+        }
+        function closeRecalcModal() { document.getElementById('recalcModal').classList.add('hidden'); }
+
+        function previewRecalc() {
+            const from = document.getElementById('recalcFrom').value, to = document.getElementById('recalcTo').value;
+            const only = document.getElementById('recalcService').value;
+            recalcPlan = [];
+            let scanned = 0, deltaTotal = 0;
+            const lines = [];
+            Object.keys(globalServiceLogs).forEach(key => {
+                const log = globalServiceLogs[key];
+                if (!log || !log.date || !Array.isArray(log.items)) return;
+                if (from && log.date < from) return;
+                if (to && log.date > to) return;
+                let changed = false, newTotal = 0;
+                const newItems = log.items.map(it => {
+                    const old = Number(it.commissionAmount) || 0;
+                    if (only && itemServiceName(it) !== only) { newTotal += old; return it; }
+                    scanned++;
+                    const nv = recalcItemCommission(log, it);
+                    if (nv === null || !isFinite(nv) || Math.round(nv) === Math.round(old)) { newTotal += old; return it; }
+                    changed = true; deltaTotal += nv - old; newTotal += nv;
+                    lines.push({ date: log.date, customer: log.customer, service: it.service, staff: it.staff, old, nv });
+                    return Object.assign({}, it, { commissionAmount: nv });
+                });
+                if (changed) recalcPlan.push({ key, items: newItems, total: newTotal });
+            });
+            lines.sort((a, b) => a.date.localeCompare(b.date));
+            document.getElementById('recalcSummary').innerHTML = lines.length
+                ? `Có <b>${lines.length}</b> dòng ở <b>${recalcPlan.length}</b> hóa đơn sẽ đổi hoa hồng. Tổng chênh lệch: <b class="${deltaTotal >= 0 ? 'text-emerald-700' : 'text-red-600'}">${deltaTotal >= 0 ? '+' : ''}${formatVND(deltaTotal)}</b>`
+                : `Đã kiểm tra ${scanned} dòng: hoa hồng đang đúng, không cần cập nhật.`;
+            document.getElementById('recalcList').innerHTML = lines.slice(0, 200).map(l => `<div class="text-[11px] bg-gray-50 rounded-lg px-2 py-1.5"><b>${formatDateVN(l.date)}</b> • ${billEsc(l.staff)} • ${billEsc(l.service)}<div class="text-gray-500">${billEsc(l.customer || '')}</div><div><span class="text-gray-500">${formatVND(l.old)}</span> ➜ <b class="text-brand-darkgreen">${formatVND(l.nv)}</b></div></div>`).join('') + (lines.length > 200 ? `<div class="text-[10px] text-gray-500 px-2">… và ${lines.length - 200} dòng nữa</div>` : '');
+            document.getElementById('recalcApplyBtn').disabled = recalcPlan.length === 0;
+        }
+
+        async function applyRecalc() {
+            if (!currentUser || (currentUser.role !== 'SUPER_ADMIN' && currentUser.role !== 'MANAGER')) return;
+            if (!recalcPlan.length) return;
+            const btn = document.getElementById('recalcApplyBtn');
+            btn.disabled = true;
+            const plan = recalcPlan.slice();
+            let ok = 0, bad = 0, lastErr = '';
+            for (let i = 0; i < plan.length; i++) {
+                btn.textContent = `Đang cập nhật ${i + 1}/${plan.length}...`;
+                try { await db.ref(`${SPA_PATH}/service_logs/${plan[i].key}`).update({ items: plan[i].items, commissionAmount: plan[i].total }); ok++; }
+                catch (e) { bad++; lastErr = dbErrText(e); }
+            }
+            btn.textContent = 'Cập nhật hoa hồng';
+            previewRecalc();
+            if (typeof generateStaffReport === 'function') { try { generateStaffReport(); } catch (e) {} }
+            document.getElementById('recalcSummary').innerHTML = `<span class="${bad ? 'text-red-600' : 'text-emerald-700'}">${bad ? '⚠' : '✅'} Đã cập nhật ${ok} hóa đơn${bad ? `, lỗi ${bad} hóa đơn: ${billEsc(lastErr)}` : ''}.</span>`;
+        }
+
         // ===================== SỬA DỊCH VỤ / SẢN PHẨM / COMBO (hoa hồng áp dụng theo lịch) =====================
         function effectiveService(sv, dateStr) {
             if (!sv) return sv;
@@ -2936,7 +3080,12 @@
             hist.sort((a, b) => a.from.localeCompare(b.from));
             upd.commHistory = hist.length ? hist : null;
             db.ref(SPA_PATH + '/services/' + key).update(upd, (err) => {
-                if (!err) { alert('Đã lưu thay đổi!'); closeEditService(); }
+                if (!err) {
+                    closeEditService();
+                    // Hoa hồng áp dụng từ ngày quá khứ -> đề nghị tính lại các hóa đơn đã lưu từ ngày đó
+                    if (from <= todayLocalStr()) setTimeout(() => openRecalcModal({ from, serviceName: sv0.name }), 400);
+                    else alert('Đã lưu thay đổi!');
+                }
             });
         }
 
@@ -3173,7 +3322,9 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
                     const qtyEl = row.querySelector('.serv-qty');
                     const qty = (itemType === 'PRODUCT' && qtyEl) ? Math.max(1, parseInt(qtyEl.value) || 1) : 1;
                     // Hoa hồng cố định tính trên từng sản phẩm; hoa hồng % tính trên tổng tiền dòng
-                    let commAmount = (servObj && servObj.commType === 'FIXED') ? (commVal * qty) : ((price * commVal) / 100);
+                    // Dịch vụ lẻ tặng khách (giá 0đ): hoa hồng % tính trên giá niêm yết để nhân viên vẫn được hưởng như đã cài
+                    const commBasePrice = (itemType === 'SINGLE' && price === 0 && servObj) ? (Number(servObj.price) || 0) : price;
+                    let commAmount = (servObj && servObj.commType === 'FIXED') ? (commVal * qty) : ((commBasePrice * commVal) / 100);
 
                     const itemLabel = itemType === 'PRODUCT' ? `[Sản phẩm] ${serviceName}${qty > 1 ? ' x' + qty : ''}`
                         : (itemType === 'COMBO' ? `[Combo] ${serviceName}` : serviceName);
@@ -3264,7 +3415,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
 
         // Thông báo lưu thành công (hiện ngay trên màn hình) + nút in hóa đơn
         let lastSavedLog = null;
-        const POS_BUILD = 'v10-20261021-doanh-thu-thang';
+        const POS_BUILD = 'v11-20261021-tinh-lai-hoa-hong';
         function showSaveDone(log, key, customerName, total, results, pending) {
             lastSavedLog = { log, key };
             document.getElementById('saveDoneInfo').innerHTML = `Khách: <b>${billEsc(customerName)}</b><br>Tổng thu: <b>${formatVND(total)}</b>`;
