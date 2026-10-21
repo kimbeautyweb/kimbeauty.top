@@ -164,8 +164,19 @@
                     <!-- BÁO CÁO DOANH THU NGÀY -->
                     <div class="bg-brand-cream/60 p-3 rounded-2xl border border-brand-green/10 space-y-2">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-brand-darkgreen">📊 Doanh Thu Theo Ngày:</span>
-                            <input type="date" id="reportDateSelect" onchange="generateDailyReport()" class="px-2.5 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold text-brand-darkgreen">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-xs font-bold text-brand-darkgreen">📊 Doanh thu</span>
+                                <select id="reportMode" onchange="onReportModeChange()" class="px-2 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold text-brand-darkgreen">
+                                    <option value="DAY">Theo ngày</option>
+                                    <option value="MONTH">Theo tháng</option>
+                                </select>
+                            </div>
+                            <div id="reportDateWrap">
+                                <input type="date" id="reportDateSelect" onchange="generateDailyReport()" class="px-2.5 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold text-brand-darkgreen">
+                            </div>
+                            <div id="reportMonthWrap" class="hidden">
+                                <input type="month" id="reportMonthSelect" onchange="generateDailyReport()" class="px-2.5 py-1 bg-white rounded-lg border border-gray-200 text-xs font-bold text-brand-darkgreen">
+                            </div>
                         </div>
                         <div class="grid grid-cols-4 gap-1.5 text-center">
                             <div class="bg-white p-2 rounded-xl border border-gray-100">
@@ -184,6 +195,13 @@
                                 <p class="text-[10px] text-amber-800 font-bold">TỔNG THU</p>
                                 <p id="reportGrandTotal" class="text-xs font-black text-amber-900">0 đ</p>
                             </div>
+                        </div>
+                        <div id="reportMonthDetail" class="hidden space-y-1.5">
+                            <div id="reportMonthSummary" class="text-[11px] font-bold text-gray-700 bg-white rounded-xl border border-gray-100 px-3 py-2"></div>
+                            <details class="bg-white rounded-xl border border-gray-100 px-3 py-2">
+                                <summary class="text-[11px] font-bold text-brand-darkgreen cursor-pointer">Chi tiết từng ngày trong tháng</summary>
+                                <div id="reportMonthDays" class="mt-1.5 space-y-1 max-h-60 overflow-y-auto"></div>
+                            </details>
                         </div>
                     </div>
 
@@ -1218,6 +1236,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             const todayStr = todayLocalStr();
             document.getElementById('reportDateSelect').value = todayStr;
+            document.getElementById('reportMonthSelect').value = todayStr.substring(0, 7);
             document.getElementById('logDate').value = todayStr;
             document.getElementById('logFilterDate').value = todayStr;
             document.getElementById('logFilterMonth').value = todayStr.substring(0, 7);
@@ -3245,7 +3264,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
 
         // Thông báo lưu thành công (hiện ngay trên màn hình) + nút in hóa đơn
         let lastSavedLog = null;
-        const POS_BUILD = 'v9-20261021-lich-hen';
+        const POS_BUILD = 'v10-20261021-doanh-thu-thang';
         function showSaveDone(log, key, customerName, total, results, pending) {
             lastSavedLog = { log, key };
             document.getElementById('saveDoneInfo').innerHTML = `Khách: <b>${billEsc(customerName)}</b><br>Tổng thu: <b>${formatVND(total)}</b>`;
@@ -3516,21 +3535,48 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
             } else form.classList.add('hidden');
         }
 
+        function onReportModeChange() {
+            const m = document.getElementById('reportMode').value;
+            document.getElementById('reportDateWrap').classList.toggle('hidden', m !== 'DAY');
+            document.getElementById('reportMonthWrap').classList.toggle('hidden', m !== 'MONTH');
+            document.getElementById('reportMonthDetail').classList.toggle('hidden', m !== 'MONTH');
+            generateDailyReport();
+        }
+
+        // Doanh thu theo ngày hoặc theo tháng (tùy ô chọn)
         function generateDailyReport() {
-            const selectedDate = document.getElementById('reportDateSelect').value;
+            const modeEl = document.getElementById('reportMode');
+            const mode = modeEl ? modeEl.value : 'DAY';
+            const selected = mode === 'MONTH' ? document.getElementById('reportMonthSelect').value : document.getElementById('reportDateSelect').value;
             let totalClients = 0, totalCash = 0, totalTransfer = 0;
+            const byDay = {};
             Object.keys(globalServiceLogs).forEach(k => {
                 const l = globalServiceLogs[k];
-                if(l.date === selectedDate) {
-                    totalClients++;
-                    totalCash += (l.cash || 0);
-                    totalTransfer += (l.transfer || 0);
-                }
+                const hit = mode === 'MONTH' ? !!(selected && l.date && l.date.startsWith(selected)) : l.date === selected;
+                if (!hit) return;
+                totalClients++;
+                totalCash += (l.cash || 0);
+                totalTransfer += (l.transfer || 0);
+                const d = byDay[l.date] || (byDay[l.date] = { n: 0, cash: 0, transfer: 0 });
+                d.n++; d.cash += (l.cash || 0); d.transfer += (l.transfer || 0);
             });
             document.getElementById('statTotalCust').innerText = totalClients;
             document.getElementById('reportCashTotal').innerText = formatVND(totalCash);
             document.getElementById('reportTransferTotal').innerText = formatVND(totalTransfer);
             document.getElementById('reportGrandTotal').innerText = formatVND(totalCash + totalTransfer);
+            if (mode === 'MONTH') {
+                const days = Object.keys(byDay).sort().reverse();
+                const grand = totalCash + totalTransfer;
+                const sum = document.getElementById('reportMonthSummary');
+                if (sum) sum.innerHTML = days.length
+                    ? `Tháng ${selected ? selected.split('-').reverse().join('/') : ''}: <span class="text-emerald-700">${days.length} ngày có doanh thu</span> • Trung bình <span class="text-amber-800">${formatVND(grand / days.length)}</span>/ngày`
+                    : 'Tháng này chưa có doanh thu.';
+                const list = document.getElementById('reportMonthDays');
+                if (list) list.innerHTML = days.map(dk => {
+                    const d = byDay[dk];
+                    return `<div class="flex justify-between items-center text-[11px] bg-brand-cream/40 rounded-lg px-2 py-1"><span><b>${formatDateVN(dk)}</b> • ${d.n} lượt</span><span class="font-bold text-amber-900">${formatVND(d.cash + d.transfer)}</span></div>`;
+                }).join('');
+            }
         }
 
         function renderPendingBookingsInLogUI() {
