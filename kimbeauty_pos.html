@@ -13,15 +13,17 @@
             theme: {
                 extend: {
                     colors: {
-                        'brand-green': '#2E5A44',
-                        'brand-darkgreen': '#1C3A2B',
-                        'brand-cream': '#F9F6F0',
-                        'brand-gold': '#D4AF37'
+                        'brand-green': '#E23E57',
+                        'brand-darkgreen': '#7A1F3D',
+                        'brand-cream': '#FFF3F6',
+                        'brand-gold': '#F59E0B'
                     }
                 }
             }
         }
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- FontAwesome & SheetJS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -39,6 +41,71 @@
             #billPrintArea { display: block !important; }
         }
     </style>
+    <!-- GIAO DIỆN v15: design tokens + nút/ô nhập/thẻ đồng bộ -->
+    <style>
+        :root { --rose:#E23E57; --rose-dark:#C82A45; --wine:#7A1F3D; --ink:#3B1F2B; --muted:#9A7B86; --line:#F6D5DE; }
+        html body { font-family:'Be Vietnam Pro',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; color:var(--ink);
+            background: linear-gradient(180deg,#FFE4EB 0%,#FFF0F4 38%,#FFF8FA 100%) fixed; padding-bottom:7.5rem; -webkit-font-smoothing:antialiased; }
+        button { cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .12s ease, box-shadow .15s ease, background-color .15s ease, filter .15s ease, opacity .15s ease; }
+        button:active:not(:disabled) { transform:scale(.97); }
+        button:disabled { opacity:.55; cursor:not-allowed; }
+        button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:2px solid var(--rose); outline-offset:2px; }
+        html body input:not([type=checkbox]):not([type=radio]):not([type=range]), html body select, html body textarea { border-radius:.85rem; transition:border-color .15s, box-shadow .15s, background-color .15s; }
+        html body input:not([type=checkbox]):not([type=radio]):focus, html body select:focus, html body textarea:focus { border-color:var(--rose) !important; box-shadow:0 0 0 3px rgba(226,62,87,.16); outline:none; }
+        /* nút chính (xanh cũ -> hồng đỏ) */
+        html body button.bg-brand-green, html body button.bg-brand-darkgreen, html body a.bg-brand-green {
+            background-image:linear-gradient(135deg,#F0566F,#D62F4E); color:#fff; font-weight:700; border:0;
+            box-shadow:0 8px 16px -8px rgba(214,47,78,.65), inset 0 1px 0 rgba(255,255,255,.25); }
+        html body button.bg-brand-green:hover:not(:disabled), html body button.bg-brand-darkgreen:hover:not(:disabled) { filter:brightness(1.06); box-shadow:0 10px 20px -8px rgba(214,47,78,.7), inset 0 1px 0 rgba(255,255,255,.25); }
+        /* thẻ trắng bo tròn */
+        html body .bg-white.rounded-3xl { border-color:rgba(244,114,182,.18); box-shadow:0 10px 28px -16px rgba(190,50,90,.28); }
+        html body .bg-white.rounded-2xl.shadow-2xl { box-shadow:0 18px 40px -12px rgba(122,31,61,.35); }
+        /* màn hình đăng nhập */
+        html body #authScreen { background:linear-gradient(160deg,#FFD9E2 0%,#FFC2D1 55%,#FFADC1 100%); }
+        html body #authScreen > div { box-shadow:0 30px 60px -20px rgba(122,31,61,.45); }
+        .auth-logo { width:64px; height:64px; border-radius:9999px; margin:0 auto .5rem; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.4rem; color:#fff; background:linear-gradient(135deg,#FB923C,#F43F5E); box-shadow:0 10px 22px -8px rgba(244,63,94,.7); }
+        /* header */
+        .app-header { position:sticky; top:0; z-index:40; padding:.75rem 1rem .6rem; background:rgba(255,228,235,.82); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid rgba(244,114,182,.18); color:var(--ink); }
+        .avatar { width:44px; height:44px; border-radius:9999px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.05rem; color:#fff; background:linear-gradient(135deg,#FDBA74,#F97316); box-shadow:0 8px 16px -8px rgba(249,115,22,.8), 0 0 0 3px #fff; flex-shrink:0; }
+        .role-badge { display:inline-block; margin-top:2px; font-size:10px; font-weight:700; color:var(--rose-dark); background:#fff; border:1px solid var(--line); padding:1px 8px; border-radius:9999px; }
+        .hdr-btn { display:flex; align-items:center; gap:.4rem; background:#fff; border:1px solid var(--line); color:var(--wine); padding:.45rem .7rem; border-radius:.9rem; font-size:.75rem; font-weight:700; box-shadow:0 4px 10px -6px rgba(190,50,90,.35); max-width:9.5rem; }
+        .hdr-btn:hover { background:#FFF3F6; }
+        .hdr-btn span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .hdr-icon { width:38px; height:38px; justify-content:center; padding:0; }
+        /* trang chủ */
+        .home-card { background:#fff; border-radius:1.75rem; padding:1.1rem .75rem; box-shadow:0 14px 34px -18px rgba(190,50,90,.35); border:1px solid rgba(244,114,182,.15); }
+        .home-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.9rem .25rem; }
+        .tile { display:flex; flex-direction:column; align-items:center; gap:.4rem; background:transparent; border:0; padding:.2rem; font-size:11px; font-weight:600; color:var(--ink); text-align:center; line-height:1.2; }
+        .tile .ico { width:52px; height:52px; border-radius:1.1rem; display:flex; align-items:center; justify-content:center; font-size:1.35rem; box-shadow:0 8px 14px -10px rgba(0,0,0,.35); transition:transform .15s; }
+        .tile:hover .ico { transform:translateY(-2px); }
+        .tile.is-active { color:var(--rose-dark); }
+        .tile.is-active .ico { outline:2px solid var(--rose); outline-offset:2px; }
+        .sec-label { font-size:.7rem; letter-spacing:.12em; font-weight:800; color:var(--wine); }
+        .pills { display:flex; gap:.25rem; background:#fff; padding:.25rem; border-radius:9999px; border:1px solid var(--line); }
+        .pill { font-size:11px; font-weight:700; padding:.35rem .8rem; border-radius:9999px; color:var(--muted); background:transparent; border:0; }
+        .pill.is-active { background:var(--rose); color:#fff; box-shadow:0 6px 12px -6px rgba(226,62,87,.8); }
+        .stat { border-radius:1.25rem; padding:.85rem .9rem; border:1px solid rgba(255,255,255,.7); box-shadow:0 10px 20px -16px rgba(0,0,0,.35); }
+        .stat .lbl { font-size:11px; font-weight:600; color:rgba(0,0,0,.55); display:flex; align-items:center; gap:.3rem; }
+        .stat .val { font-size:1.15rem; font-weight:800; margin-top:.2rem; color:var(--ink); word-break:break-word; }
+        .chart { display:flex; align-items:flex-end; gap:4px; height:150px; padding-top:8px; }
+        .chart .col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:0; }
+        .chart .bar { width:100%; max-width:34px; border-radius:8px 8px 3px 3px; background:linear-gradient(180deg,#F87185,#E23E57); min-height:3px; transition:height .35s ease; }
+        .chart .bar.dim { background:linear-gradient(180deg,#F9B4C0,#F4A0B0); }
+        .chart .tick { font-size:9px; color:var(--muted); margin-top:4px; white-space:nowrap; }
+        .chart .tv { font-size:9px; font-weight:700; color:var(--wine); margin-bottom:2px; white-space:nowrap; }
+        /* thanh điều hướng dưới */
+        .bottom-nav { position:fixed; left:0; right:0; bottom:0; z-index:40; background:rgba(255,255,255,.96); backdrop-filter:blur(10px); border-top:1px solid var(--line); box-shadow:0 -10px 30px -18px rgba(190,50,90,.45); padding:.35rem .5rem calc(.45rem + env(safe-area-inset-bottom)); }
+        .bnav-inner { max-width:36rem; margin:0 auto; display:grid; grid-template-columns:1fr 1fr 1.15fr 1fr 1fr; align-items:end; text-align:center; }
+        .bnav-item { display:flex; flex-direction:column; align-items:center; gap:2px; padding:.35rem 0; font-size:10.5px; font-weight:600; color:#B8A0A8; background:transparent; border:0; border-radius:.9rem; min-height:48px; }
+        .bnav-item i { font-size:1.15rem; }
+        .bnav-item.is-active { color:var(--rose); font-weight:800; }
+        .bnav-item.is-active i { transform:translateY(-1px); }
+        .bnav-fab-wrap { display:flex; flex-direction:column; align-items:center; gap:2px; margin-top:-26px; font-size:10.5px; font-weight:800; color:var(--rose-dark); }
+        .bnav-fab { width:58px; height:58px; border-radius:9999px; border:4px solid #fff; color:#fff; font-size:1.35rem; background:linear-gradient(135deg,#F25C74,#D62F4E); box-shadow:0 12px 22px -8px rgba(214,47,78,.8); display:flex; align-items:center; justify-content:center; }
+        .bnav-fab:hover { filter:brightness(1.07); }
+        /* tiêu đề tab con đồng bộ */
+        html body .tab-content > .bg-white > .flex h2 { letter-spacing:.02em; }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 pb-20 sm:pb-6">
 
@@ -46,6 +113,7 @@
     <div id="authScreen" class="fixed inset-0 z-50 bg-brand-darkgreen flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl space-y-5">
             <div class="text-center space-y-1">
+                <div class="auth-logo">KB</div>
                 <h1 class="text-2xl font-black text-brand-darkgreen tracking-wide">KIM BEAUTY POS</h1>
                 <p id="authSubtitle" class="text-xs text-gray-500 font-medium">Đang kiểm tra dữ liệu hệ thống...</p>
                 <div id="authCountdown" class="pos-countdown hidden mt-2 inline-block text-[11px] font-bold px-3 py-1 rounded-full border"></div>
@@ -96,30 +164,31 @@
     <!-- MAIN APP CONTAINER -->
     <div id="mainApp" class="hidden min-h-screen flex flex-col">
         <!-- HEADER THÔNG TIN TÀI KHOẢN -->
-        <header class="bg-brand-darkgreen text-white px-4 py-3 sticky top-0 z-40 shadow-md">
-            <div class="max-w-4xl mx-auto mb-2 text-center">
-                <div id="headerCountdown" class="pos-countdown hidden inline-block text-[11px] font-bold px-3 py-1 rounded-full border"></div>
+        <header class="app-header">
+            <div class="max-w-4xl mx-auto text-center empty:hidden">
+                <div id="headerCountdown" class="pos-countdown hidden inline-block text-[11px] font-bold px-3 py-1 rounded-full border mb-2"></div>
             </div>
-            <div class="max-w-4xl mx-auto flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <div class="w-9 h-9 rounded-full bg-brand-gold text-brand-darkgreen font-black flex items-center justify-center text-sm shadow">KB</div>
-                    <div>
-                        <h2 class="font-bold text-sm tracking-wide leading-tight">KIM BEAUTY POS</h2>
-                        <p id="headerUserRole" class="text-[10px] text-amber-200 font-semibold">Super Admin</p>
+            <div class="max-w-4xl mx-auto flex items-center justify-between gap-2">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div id="headerAvatar" class="avatar">K</div>
+                    <div class="min-w-0">
+                        <p class="text-[11px] font-medium" style="color:var(--muted)">Xin chào 👋</p>
+                        <h2 id="headerGreetName" class="font-extrabold text-[15px] leading-tight truncate" style="color:var(--wine)">KIM BEAUTY POS</h2>
+                        <span id="headerUserRole" class="role-badge">Super Admin</span>
                     </div>
                 </div>
-                
-                <div class="flex items-center gap-2">
-                    <button id="btnEnableNotify" onclick="requestNotificationPermission()" class="text-xs bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1 rounded-lg font-bold shadow animate-pulse">
-                        🔔 Bật Thông Báo
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <button id="btnEnableNotify" onclick="requestNotificationPermission()" title="Bật thông báo lịch hẹn" class="hdr-btn hdr-icon animate-pulse" style="color:#D97706">
+                        <i class="fa-solid fa-bell"></i>
                     </button>
-                    
+
                     <div class="relative">
-                        <button onclick="toggleUserMenu()" class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl text-xs font-bold border border-white/20">
+                        <button onclick="toggleUserMenu()" class="hdr-btn">
+                            <i class="fa-regular fa-circle-user"></i>
                             <span id="headerUserName">Admin</span>
-                            <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                            <i class="fa-solid fa-chevron-down text-[9px]"></i>
                         </button>
-                        
                         <div id="userMenuDropdown" class="hidden absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-2xl py-2 z-50 text-gray-800 border border-gray-100">
                             <div class="px-4 py-2 border-b border-gray-100">
                                 <p id="dropdownName" class="font-bold text-xs text-brand-darkgreen">Admin</p>
@@ -152,9 +221,44 @@
 
         <!-- NỘI DUNG CÁC TAB CỐ ĐỊNH & TAB ĐỘNG -->
         <main class="flex-1 max-w-4xl w-full mx-auto p-3 sm:p-4">
+
+            <!-- TRANG CHỦ: lối tắt + báo cáo nhanh -->
+            <section id="tab-home" class="tab-content space-y-4">
+                <div class="home-card">
+                    <div id="homeTiles" class="home-grid">
+                        <button data-perm="logs" onclick="quickSale()" class="tile"><span class="ico" style="background:#FFE0E6">🛒</span><span>Bán hàng</span></button>
+                        <button data-perm="logs" data-tab="logs" onclick="switchTab('logs')" class="tile"><span class="ico" style="background:#FFEBD2">🧾</span><span>Nhật ký</span></button>
+                        <button data-perm="booking" data-tab="booking" onclick="switchTab('booking')" class="tile"><span class="ico" style="background:#E3F0FF">📅</span><span>Lịch hẹn</span></button>
+                        <button data-perm="customers" data-tab="customers" onclick="switchTab('customers')" class="tile"><span class="ico" style="background:#E6F7E9">👥</span><span>Khách hàng</span></button>
+                        <button id="btn-services" data-tab="services" onclick="switchTab('services')" class="tile"><span class="ico" style="background:#F3E5FF">💆</span><span>Dịch vụ / SP</span></button>
+                        <button id="btn-staff" data-tab="staff" onclick="switchTab('staff')" class="tile"><span class="ico" style="background:#FFF5CC">💵</span><span>Bảng lương</span></button>
+                        <button id="btn-sitebuilder" data-tab="sitebuilder" onclick="switchTab('sitebuilder')" class="tile superadmin-only hidden"><span class="ico" style="background:#E9E5FF">⚙️</span><span>Quản trị</span></button>
+                    </div>
+                </div>
+
+                <div id="homeReport" data-perm="logs" class="space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <h3 class="sec-label">BÁO CÁO</h3>
+                        <div class="pills" id="homeRangePills">
+                            <button class="pill is-active" data-range="day" onclick="setHomeRange('day')">Hôm nay</button>
+                            <button class="pill" data-range="week" onclick="setHomeRange('week')">Tuần này</button>
+                            <button class="pill" data-range="month" onclick="setHomeRange('month')">Tháng này</button>
+                        </div>
+                    </div>
+                    <div id="homeStats" class="grid grid-cols-2 gap-3"></div>
+                    <div class="bg-white rounded-3xl p-4 border">
+                        <div class="flex items-center justify-between mb-1">
+                            <h3 id="homeChartTitle" class="font-bold text-sm" style="color:var(--wine)">Doanh thu</h3>
+                            <span id="homeChartSub" class="text-[10px]" style="color:var(--muted)"></span>
+                        </div>
+                        <div id="homeChart" class="chart"></div>
+                    </div>
+                </div>
+            </section>
+
             
             <!-- TAB 1: NHẬT KÝ DỊCH VỤ & BÁN HÀNG -->
-            <section id="tab-logs" class="tab-content space-y-4">
+            <section id="tab-logs" class="tab-content space-y-4 hidden">
                 <div class="bg-white p-4 rounded-3xl shadow-sm border border-brand-green/10 space-y-3">
                     <div class="flex items-center justify-between">
                         <h2 class="font-bold text-brand-darkgreen text-sm uppercase flex items-center gap-1.5">
@@ -709,33 +813,23 @@
         </main>
 
         <!-- NAVIGATION TAB DƯỚI MÀN HÌNH MÁY TÍNH & ĐIỆN THOẠI -->
-        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 py-2 px-3 shadow-lg">
-            <div id="bottomNavContainer" class="max-w-xl mx-auto flex justify-between items-center text-center overflow-x-auto gap-2">
-                <button id="btn-logs" onclick="switchTab('logs')" class="nav-tab text-brand-green font-bold flex flex-col items-center gap-0.5 text-[11px] shrink-0">
-                    <i class="fa-solid fa-receipt text-base"></i>
-                    <span>Nhật Ký</span>
+        <nav class="bottom-nav">
+            <div id="bottomNavContainer" class="bnav-inner">
+                <button id="btn-home" data-tab="home" onclick="switchTab('home')" class="nav-tab bnav-item is-active">
+                    <i class="fa-solid fa-house"></i><span>Trang chủ</span>
                 </button>
-                <button id="btn-booking" onclick="switchTab('booking')" class="nav-tab text-gray-400 font-medium flex flex-col items-center gap-0.5 text-[11px] shrink-0">
-                    <i class="fa-solid fa-calendar-check text-base"></i>
-                    <span>Lịch Hẹn</span>
+                <button id="btn-logs" data-tab="logs" onclick="switchTab('logs')" class="nav-tab bnav-item">
+                    <i class="fa-solid fa-receipt"></i><span>Nhật ký</span>
                 </button>
-                <button id="btn-customers" onclick="switchTab('customers')" class="nav-tab text-gray-400 font-medium flex flex-col items-center gap-0.5 text-[11px] shrink-0">
-                    <i class="fa-solid fa-users text-base"></i>
-                    <span>Khách Hàng</span>
+                <div id="navFab" data-perm="logs" class="bnav-fab-wrap">
+                    <button onclick="quickSale()" class="bnav-fab" aria-label="Bán hàng mới"><i class="fa-solid fa-plus"></i></button>
+                    <span>Bán hàng</span>
+                </div>
+                <button id="btn-booking" data-tab="booking" onclick="switchTab('booking')" class="nav-tab bnav-item">
+                    <i class="fa-solid fa-calendar-check"></i><span>Lịch hẹn</span>
                 </button>
-                <button id="btn-services" onclick="switchTab('services')" class="nav-tab text-gray-400 font-medium flex flex-col items-center gap-0.5 text-[11px] shrink-0">
-                    <i class="fa-solid fa-spa text-base"></i>
-                    <span>Dịch Vụ/SP</span>
-                </button>
-                <button id="btn-staff" onclick="switchTab('staff')" class="nav-tab text-gray-400 font-medium flex flex-col items-center gap-0.5 text-[11px] shrink-0">
-                    <i class="fa-solid fa-users-gear text-base"></i>
-                    <span>Bảng Lương</span>
-                </button>
-
-                <!-- THẺ CHỈ SUPER ADMIN MỚI THẤY ĐỂ QUẢN TRỊ TRANG -->
-                <button id="btn-sitebuilder" onclick="switchTab('sitebuilder')" class="nav-tab text-purple-600 font-bold flex flex-col items-center gap-0.5 text-[11px] shrink-0 superadmin-only hidden">
-                    <i class="fa-solid fa-cubes text-base"></i>
-                    <span>⚙️ Quản Trị</span>
+                <button id="btn-customers" data-tab="customers" onclick="switchTab('customers')" class="nav-tab bnav-item">
+                    <i class="fa-solid fa-users"></i><span>Khách hàng</span>
                 </button>
             </div>
         </nav>
@@ -1915,6 +2009,10 @@
             document.getElementById('btn-customers').style.display = (isSuperAdmin || perms.customers) ? 'flex' : 'none';
             document.getElementById('btn-services').style.display = (isSuperAdmin || perms.services) ? 'flex' : 'none';
             document.getElementById('btn-staff').style.display = (isSuperAdmin || perms.staff) ? 'flex' : 'none';
+            document.querySelectorAll('[data-perm]').forEach(el => { el.style.display = (isSuperAdmin || perms[el.dataset.perm]) ? '' : 'none'; });
+            const nm = (currentUser.fullName || 'K').trim();
+            const av = document.getElementById('headerAvatar'); if (av) av.textContent = nm.charAt(0).toUpperCase();
+            const gn = document.getElementById('headerGreetName'); if (gn) gn.textContent = nm;
 
             document.querySelectorAll('.admin-only').forEach(el => {
                 if (isAdmin) el.classList.remove('hidden');
@@ -1975,6 +2073,7 @@
 
             db.ref(SPA_PATH + '/service_logs').on('value', (snap) => {
                 globalServiceLogs = snap.val() || {};
+                renderHome();
                 renderServiceLogsUI();
                 generateDailyReport();
                 generateStaffReport();
@@ -2144,8 +2243,8 @@
                 const mod = globalDynamicModules[modId];
 
                 const navBtnHTML = `
-                    <button id="btn-${modId}" onclick="switchTab('${modId}')" class="dyn-nav-btn nav-tab text-purple-700 font-bold flex flex-col items-center gap-0.5 text-[11px] shrink-0">
-                        <i class="fa-solid fa-cube text-base"></i>
+                    <button id="btn-${modId}" data-tab="${modId}" onclick="switchTab('${modId}')" class="dyn-nav-btn tile">
+                        <span class="ico" style="background:#EDE4FF">🧩</span>
                         <span>${mod.title}</span>
                     </button>
                 `;
@@ -3477,7 +3576,7 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
 
         // Thông báo lưu thành công (hiện ngay trên màn hình) + nút in hóa đơn
         let lastSavedLog = null;
-        const POS_BUILD = 'v14-20261021';
+        const POS_BUILD = 'v15-20261024';
         (function () { const el = document.getElementById('posBuildLabel'); if (el) el.textContent = 'Bản POS ' + POS_BUILD; })();
         function showSaveDone(log, key, customerName, total, results, pending) {
             lastSavedLog = { log, key };
@@ -4213,19 +4312,67 @@ ${(s.type === 'COMBO' && s.sessionCommissions && isAdmin) ? `<div class="flex fl
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.nav-tab').forEach(btn => {
-                btn.classList.remove('text-brand-green', 'text-purple-700', 'font-bold');
-                btn.classList.add('text-gray-400', 'font-medium');
-            });
-            
+            document.querySelectorAll('[data-tab]').forEach(btn => btn.classList.toggle('is-active', btn.dataset.tab === tabId));
             const targetTab = document.getElementById('tab-' + tabId);
             if (targetTab) targetTab.classList.remove('hidden');
+            if (tabId === 'home') renderHome();
+            try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
+        }
 
-            const activeBtn = document.getElementById('btn-' + tabId);
-            if (activeBtn) {
-                activeBtn.classList.remove('text-gray-400', 'font-medium');
-                activeBtn.classList.add(tabId === 'sitebuilder' ? 'text-purple-600' : 'text-brand-green', 'font-bold');
-            }
+        // Nút "Bán hàng" (dấu +): mở thẳng form tạo hóa đơn
+        function quickSale() {
+            switchTab('logs');
+            toggleAddLogForm(true);
+            const f = document.getElementById('addLogForm');
+            if (f) setTimeout(() => f.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+        }
+
+        // ===== TRANG CHỦ: báo cáo nhanh =====
+        let homeRange = 'day';
+        function setHomeRange(r) { homeRange = r; renderHome(); }
+        function homeDateStr(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+        function shortMoney(n) {
+            n = Math.round(n || 0);
+            if (n >= 1e6) return (Math.round(n / 1e5) / 10) + 'tr';
+            if (n >= 1e3) return Math.round(n / 1e3) + 'k';
+            return String(n);
+        }
+        function renderHome() {
+            const statsEl = document.getElementById('homeStats'), chartEl = document.getElementById('homeChart');
+            if (!statsEl || !chartEl) return;
+            document.querySelectorAll('#homeRangePills .pill').forEach(b => b.classList.toggle('is-active', b.dataset.range === homeRange));
+            const now = new Date();
+            const today = homeDateStr(now);
+            let days = [];   // các ngày hiển thị trên biểu đồ
+            if (homeRange === 'day') { for (let i = 6; i >= 0; i--) { const d = new Date(now); d.setDate(d.getDate() - i); days.push(homeDateStr(d)); } }
+            else if (homeRange === 'week') { const dow = (now.getDay() + 6) % 7; for (let i = 0; i < 7; i++) { const d = new Date(now); d.setDate(d.getDate() - dow + i); days.push(homeDateStr(d)); } }
+            else { const n = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); for (let i = 1; i <= n; i++) days.push(homeDateStr(new Date(now.getFullYear(), now.getMonth(), i))); }
+            const inRange = homeRange === 'day' ? (d => d === today) : (d => days.indexOf(d) >= 0);
+            const perDay = {}; days.forEach(d => perDay[d] = 0);
+            let total = 0, cash = 0, transfer = 0, bills = 0; const custs = new Set();
+            Object.values(globalServiceLogs || {}).forEach(l => {
+                if (!l || !l.date) return;
+                if (perDay[l.date] !== undefined) perDay[l.date] += Number(l.total) || 0;
+                if (!inRange(l.date)) return;
+                total += Number(l.total) || 0; cash += Number(l.cash) || 0; transfer += Number(l.transfer) || 0; bills++;
+                if (l.customer) custs.add(l.customer);
+            });
+            const card = (bg, ico, lbl, val) => `<div class="stat" style="background:${bg}"><div class="lbl"><span>${ico}</span>${lbl}</div><div class="val">${val}</div></div>`;
+            statsEl.innerHTML =
+                card('#FFE3E8', '💰', 'Doanh thu', formatVND(total)) +
+                card('#E3F0FF', '🧾', 'Số hóa đơn', bills + ' đơn · ' + custs.size + ' khách') +
+                card('#E4F6E8', '💵', 'Tiền mặt', formatVND(cash)) +
+                card('#FFF0D6', '🏦', 'Chuyển khoản', formatVND(transfer));
+            const max = Math.max.apply(null, days.map(d => perDay[d]).concat([1]));
+            const dense = days.length > 10;
+            chartEl.innerHTML = days.map(d => {
+                const v = perDay[d], h = Math.max(2, Math.round(v / max * 100));
+                const dt = d.slice(8) + (dense ? '' : '/' + d.slice(5, 7));
+                const showTick = !dense || Number(d.slice(8)) % 5 === 1 || d === today;
+                return `<div class="col" title="${d}: ${formatVND(v)}"><div class="tv">${v && !dense ? shortMoney(v) : ''}</div><div class="bar ${d === today ? '' : 'dim'}" style="height:${h * 0.8}%"></div><div class="tick">${showTick ? dt : '&nbsp;'}</div></div>`;
+            }).join('');
+            document.getElementById('homeChartTitle').textContent = homeRange === 'day' ? 'Doanh thu 7 ngày gần nhất' : homeRange === 'week' ? 'Doanh thu tuần này' : 'Doanh thu tháng ' + (now.getMonth() + 1);
+            document.getElementById('homeChartSub').textContent = 'Cột đậm = hôm nay';
         }
 
         function openAddCustomerModal() { document.getElementById('addCustModal').classList.remove('hidden'); }
